@@ -35,6 +35,30 @@ button.round:active, button.round.pressed {
 button.big { width: clamp(84px, 15vmin, 128px); height: clamp(84px, 15vmin, 128px); border: 5px solid #fff; }
 #btn-sniff { background: #FFC94A; }
 #btn-wheek { background: #FF7FA0; }
+#btn-jump { background: #5CCB5F; }
+#btn-home { right: calc(max(12px, env(safe-area-inset-right)) + 60px); }
+
+/* the trail of level stones */
+#levels {
+  position: fixed; inset: 0; z-index: 4; display: grid; place-items: center;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255,250,220,.35) 0%, rgba(255,246,200,.75) 100%);
+}
+#trail { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: clamp(14px, 4vmin, 40px); padding: 6vmin; max-width: 900px; }
+button.stone {
+  position: relative; width: clamp(92px, 21vmin, 168px); height: clamp(92px, 21vmin, 168px);
+  border: 7px solid #fff; background: #B9A58A; color: #fff;
+  font: 900 clamp(46px, 11vmin, 88px)/1 "Baloo 2", "Fredoka", "Chalkboard SE", "Comic Sans MS", ui-rounded, "Arial Rounded MT Bold", system-ui, sans-serif;
+}
+button.stone:nth-child(even) { margin-top: clamp(30px, 9vmin, 80px); }
+button.stone b { text-shadow: 0 4px 0 rgba(0,0,0,.18); }
+button.stone.free { background: #FF9A5C; }
+button.stone.done { background: #5BB8F5; }
+button.stone.next { background: #5CCB5F; animation: pulse 1.1s ease-in-out infinite; box-shadow: 0 6px 0 rgba(0,0,0,.18), 0 0 0 12px rgba(255,255,255,.6); }
+button.stone.locked { background: #C9CDC4; border-color: rgba(255,255,255,.7); color: rgba(255,255,255,.75); box-shadow: none; }
+button.stone .badge { position: absolute; width: 46%; height: 46%; right: -12%; top: -14%; filter: drop-shadow(0 3px 0 rgba(0,0,0,.15)); }
+button.stone.just .badge { animation: letter .7s cubic-bezier(.2,1.6,.4,1) .2s both; }
+button.stone.no { animation: no .35s ease-in-out; }
+@keyframes no { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-9px); } 75% { transform: translateX(9px); } }
 
 button.small {
   position: fixed;
@@ -100,6 +124,7 @@ button.nudge { animation: nudge 1.3s ease-in-out infinite; box-shadow: 0 6px 0 r
 button.corner { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 5; background: rgba(60,80,60,.55); }
 #btn-install { left: calc(max(12px, env(safe-area-inset-left)) + 60px); background: #4A90D9; }
 body.playing #btn-install { display: none !important; }
+body:not(.playing) #btn-home { display: none; }
 body.playing #btn-full { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); }
 #ios-install { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: rgba(40,60,40,.45); }
 #ios-install .card { background: #fff; border-radius: 22px; padding: 18px 22px; text-align: center; font: 600 17px system-ui, sans-serif; color: #3C4A3A; max-width: 84vw; }

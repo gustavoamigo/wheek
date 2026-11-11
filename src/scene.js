@@ -10,7 +10,9 @@ import { STYLE } from './style.js';
 export const view = { cw: 1, ch: 1, dpr: 1, focal: 1 };
 
 let renderer, scene, camera, sun, world;
-let pig, squirrel, squirrelPos;
+let pig, squirrel, squirrelPos, gardener, gateDoor;
+const platMeshes = [];     // [platform, mesh]
+let piles = [];            // [pile, { group, berries, beacon }]
 const trees = [];          // { t, canopy, a }
 const foodMeshes = new Map();
 const butterflies = [];
@@ -101,7 +103,8 @@ export function initScene(canvas, w) {
   }
 
   const house = M.makeHouse(); house.position.set(world.house.x, 0, world.house.y - 30); scene.add(house);
-  const gate = M.makeGate(); gate.position.set(world.gate.x, 0, world.gate.y); scene.add(gate);
+  const gate = M.makeGate(); gate.root.position.set(world.gate.x, 0, world.gate.y); scene.add(gate.root); gateDoor = gate.door;
+  gardener = M.makeGardener(); gardener.root.position.set(world.gardener.x, 0, world.gardener.y); scene.add(gardener.root);
 
   // the squirrel sits on a branch of the apple tree, on the side facing the camera
   const at = world.appleTree;
@@ -137,8 +140,15 @@ export function initScene(canvas, w) {
     m.position.set(pd.x + Math.cos(a) * (pd.rx + 6), 0, pd.y + Math.sin(a) * (pd.ry + 6)); m.rotation.y = rnd() * 6; m.scale.setScalar(0.8 + rnd() * 0.5); m.castShadow = true;
     scene.add(m);
   }
-  for (const [lx, ly, sc, fl] of [[-120, 30, 1, true], [70, 55, 0.82, false], [110, -40, 0.9, true], [-40, -60, 0.7, false], [10, 20, 0.6, false]]) {
+  for (const [lx, ly, sc, fl] of pd.lilies) {
     const m = new THREE.Mesh(M.lilyGeometry(fl), plainMat); m.position.set(pd.x + lx, 0.5, pd.y + ly); m.scale.setScalar(sc); m.rotation.y = lx; scene.add(m);
+  }
+
+  // things to jump onto
+  for (const o of world.platforms) {
+    const m = new THREE.Mesh(M.platformGeometry(o), o.kind === 'stone' ? rockMat : plainMat);
+    m.position.set((o.ax + o.bx) / 2, 0, (o.ay + o.by) / 2); m.castShadow = true; m.receiveShadow = true; m.visible = !o.off; scene.add(m);
+    platMeshes.push([o, m]);
   }
 
   pig = M.makePig(); scene.add(pig.root);
@@ -175,6 +185,16 @@ export function setFoods(foods) {
   }
 }
 
+// Plates of strawberries for the counting level.
+export function setPiles(list) {
+  for (const [, o] of piles) scene.remove(o.group);
+  piles = list.map((pl) => {
+    const o = M.makePile(pl.n); o.beacon = M.makeBeacon(); o.group.add(o.beacon);
+    o.group.position.set(pl.x, 0, pl.y); scene.add(o.group);
+    return [pl, o];
+  });
+}
+
 const _v = new THREE.Vector3();
 // World point -> [screen x, screen y, pixels per world unit there, is in front of camera]
 export function project(x, h, z) {
@@ -185,9 +205,9 @@ export function project(x, h, z) {
 }
 
 // Where on the ground is the finger pointing?
-export function screenToGround(sx, sy) {
+export function screenToGround(sx, sy, h = 0) {
   _v.set((sx / view.cw) * 2 - 1, -(sy / view.ch) * 2 + 1, 0.5).unproject(camera).sub(camera.position).normalize();
-  const t = _v.y < -0.02 ? -camera.position.y / _v.y : 4000;
+  const t = _v.y < -0.02 ? (h - camera.position.y) / _v.y : 4000;
   return [camera.position.x + _v.x * t, camera.position.z + _v.z * t];
 }
 
@@ -214,10 +234,18 @@ function updateCamera(G, dt) {
   sun.position.set(camAim.x + STYLE.sunAt[0], STYLE.sunAt[1], camAim.z + STYLE.sunAt[2]);
 }
 
+export function snapCamera() { camReady = false; }
+
 // Tree tops that would hide the pig or a piece of food turn see-through.
-function hides(t, x, z) {
-  const dz = t.y - x.z, dx = Math.abs(t.x - x.x);
-  return dx < 125 * t.s && dz > 40 * t.s && dz < 500 + z;
+// The test is the real line of sight: does the line from the camera to the thing pass through
+// the tree top (a ball round it, plus some room for the thing's own size)? A tree that is
+// already see-through stays so until the line is clearly free again, so it never flickers.
+function hides(tr, f) {
+  const t = tr.t, cx = t.x, cy = 200 * t.s, cz = t.y;
+  const ax = camPos.x, ay = camPos.y, az = camPos.z, dx = f.x - ax, dy = f.h - ay, dz = f.z - az;
+  const k = clamp(((cx - ax) * dx + (cy - ay) * dy + (cz - az) * dz) / (dx * dx + dy * dy + dz * dz), 0, 1);
+  const r = 112 * t.s + f.pad + (tr.hide ? 45 : 0);
+  return Math.hypot(ax + dx * k - cx, ay + dy * k - cy, az + dz * k - cz) < r;
 }
 
 export function render(G, dt) {
@@ -225,11 +253,15 @@ export function render(G, dt) {
   pig.update(p, time);
   updateCamera(G, dt);
 
-  const focus = [{ x: p.x, z: p.y }];
-  for (const f of G.foods) if (!f.eaten && !f.hidden) focus.push({ x: f.x, z: f.y });
+  const focus = [{ x: p.x, h: 40 + (p.z || 0), z: p.y, pad: 80 }];
+  for (const f of G.foods) if (!f.eaten && !f.hidden) focus.push({ x: f.x, h: 40 + (f.h || 0), z: f.y, pad: 50 });
+  for (const [pl] of piles) if (pl.left > 0) focus.push({ x: pl.x, h: 30, z: pl.y, pad: 60 });
+  if (Math.abs(p.x - world.gardener.x) < 900) focus.push({ x: world.gardener.x, h: 240, z: world.gardener.y, pad: 110 });   // keep the gardener's face in view
+  const front = clamp(p.y, 300, H - 60);        // where the camera looks when the pig stands still
   for (const tr of trees) {
     let hide = false;
-    for (const f of focus) if (hides(tr.t, f, 0)) { hide = true; break; }
+    for (const f of focus) if (hides(tr, f)) { hide = true; break; }
+    tr.hide = hide;
     const target = hide ? 0.1 : 1;
     if (Math.abs(tr.a - target) > 0.005) {
       tr.a = lerp(tr.a, target, 1 - Math.exp(-dt * 8));
@@ -239,7 +271,10 @@ export function render(G, dt) {
       if (wasT !== m.transparent) m.needsUpdate = true;
     }
     // trees right in front of the camera shrink into the ground so they never block the view
-    const near = tr.t.y - camAim.z, g = near > 430 ? 0 : 1;
+    // (measured from the pig, not from the camera's look-ahead, so stopping does not pop them back)
+    const near = tr.t.y - front;
+    if (near > 440) tr.down = true; else if (near < 390) tr.down = false;
+    const g = tr.down ? 0 : 1;
     if (Math.abs(tr.grow - g) > 0.002) {
       tr.grow = lerp(tr.grow, g, 1 - Math.exp(-dt * 7));
       tr.group.scale.setScalar(Math.max(0.001, tr.t.s * tr.grow));
@@ -254,13 +289,13 @@ export function render(G, dt) {
     const hinted = G.hint && G.hint.kind === f.kind;
     if (f.fall >= 0) {
       const k = f.fall;
-      o.group.position.set(lerp(f.fx, f.x, k), 0, lerp(f.fz, f.y, k));
+      o.group.position.set(lerp(f.fx, f.x, k), f.h || 0, lerp(f.fz, f.y, k));
       o.holder.position.y = lerp(f.fy, 26, k * k) + Math.sin(k * Math.PI) * 50;
       o.holder.rotation.z = k * 6; o.beacon.visible = false;
       continue;
     }
     const age = time - f.born, appear = age < 0.4 ? 1 - (1 - age / 0.4) ** 3 : 1;
-    o.group.position.set(f.x, 0, f.y);
+    o.group.position.set(f.x, f.h || 0, f.y);
     o.holder.rotation.z = 0;
     o.holder.position.y = 34 + Math.sin(time * 2.2 + f.seed) * 5;
     o.holder.rotation.y = time * 0.9 + f.seed;
@@ -272,6 +307,21 @@ export function render(G, dt) {
     o.beacon.userData.disc.scale.setScalar((hinted ? 1.25 : 1) + pulse * 0.08);
   }
 
+  for (const [pl, o] of piles) {
+    o.group.visible = pl.left > 0 || pl.fade > 0;
+    o.berries.forEach((b, i) => { b.visible = i < pl.left; b.position.y = 21 + Math.sin(time * 2.4 + i * 1.7) * 2.5; });
+    o.group.rotation.z = pl.wob > 0 ? Math.sin(time * 28) * 0.07 * pl.wob : 0;
+    o.beacon.visible = pl.left > 0;
+    const pulse = 0.5 + Math.sin(time * 3 + pl.x) * 0.5;
+    o.beacon.userData.beam.material.opacity = (pl.hint ? 0.4 : 0.13) + pulse * 0.07;
+    o.beacon.userData.disc.material.opacity = (pl.hint ? 0.65 : 0.3) + pulse * 0.1;
+  }
+  for (const [o, m] of platMeshes) {
+    m.visible = !o.off;
+    m.rotation.z = o.wob > 0 ? Math.sin(time * 30) * 0.16 * o.wob : 0;
+  }
+  gardener.update(time, G.gardener);
+  gateDoor.rotation.y = lerp(gateDoor.rotation.y, G.gateOpen ? 1.35 : 0, 1 - Math.exp(-dt * 3));
   squirrel.update(time, { apple: G.squirrel.hasApple, wave: G.squirrel.wave });
   for (const [b, m] of butterflies) {
     m.position.set(b.x, b.h, b.y); m.rotation.y = -b.a + Math.PI / 2; m.userData.flap(time, b.seed);

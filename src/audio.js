@@ -89,6 +89,17 @@ export function drink(n = 6) {
   }
 }
 
+export function jump() { tone(300, 0, 0.2, { to: 760, sweep: 0.16, vol: 0.2 }); }
+export function land() { tone(170, 0, 0.1, { to: 90, vol: 0.22 }); noise(0, 0.06, { freq: 500, q: 1.2, vol: 0.1 }); }
+export function splash() {
+  noise(0, 0.5, { freq: 900, to: 2600, q: 0.7, vol: 0.3, attack: 0.02 });
+  tone(240, 0, 0.3, { to: 70, vol: 0.3 });
+  for (let i = 0; i < 4; i++) tone(700 + Math.random() * 500, 0.12 + i * 0.07, 0.09, { to: 320, sweep: 0.07, vol: 0.1 });
+}
+export function shake() { for (let i = 0; i < 7; i++) noise(i * 0.085, 0.07, { freq: 2600 + (i % 2) * 900, q: 1.2, vol: 0.11 }); }
+
+export function nope() { tone(330, 0, 0.16, { to: 300, type: 'triangle', vol: 0.22 }); tone(262, 0.19, 0.24, { to: 225, type: 'triangle', vol: 0.22 }); }
+
 export function pop() {
   tone(420, 0, 0.16, { to: 980, sweep: 0.1, vol: 0.22 });
   tone(840, 0.02, 0.1, { to: 1700, sweep: 0.08, vol: 0.07 });

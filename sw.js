@@ -1,6 +1,6 @@
 // Lets the game be installed as an app and played with no connection.
 // Network first (so a new build always wins), saved copy as the fallback.
-const CACHE = 'wheek-v1';
+const CACHE = 'wheek-v5';
 const FILES = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
   'vendor/three.module.min.js', 'src/main.js', 'src/scene.js', 'src/models.js', 'src/style.js', 'src/world.js', 'src/ground.js',
   'src/art.js', 'src/audio.js', 'src/fx.js', 'src/input.js', 'src/util.js'];

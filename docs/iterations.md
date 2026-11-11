@@ -4,6 +4,73 @@ Each iteration: what was built → what to test → feedback received → what t
 
 ---
 
+## Iteration 7 – number levels (2026-11-11)
+
+**Feedback that triggered it**: levels 1–3 with the snapping jump – *"you can move to the next levels, it's good."*
+
+**Built**
+- Level 4 – find the plate with that many strawberries (3, then 5, then 4).
+- Level 5 – hop the numbered stones 1 to 5 in order, then the lily pad.
+- Level 6 – wheek as many times as the gardener's number (2, 4, 3); the gate opens at the end.
+- The gardener, the first human, now always stands near the gate (she waves if wheeked at in other levels). The gate has a door.
+- Touching a stone / the log / the stump in reach now jumps onto it.
+- Changed from the plan: level 4 is "pick the plate with three" rather than "eat exactly three of many", because picking needs real counting and cannot be done by accident.
+
+**Checked automatically**: levels 4, 5 and 6 played to the end by script, including wrong plates (head shake, hint after two), wrong stones (bounce back), too many and too few wheeks; no script errors. **Not checked**: touching stones with a real finger or mouse, sounds, whether the pictures are understood without explanation.
+
+**Please test**
+1. **Level 4** – does a child understand the thought bubble ("3" + strawberry + dots) without help? Is the head shake at a wrong plate clear and kind?
+2. **Level 5** – touching the stones: easy with mouse and finger? Is bouncing back from a wrong stone understood?
+3. **Level 6** – is the gardener's bubble understood? Is the pause before she counts (about two seconds) too long or too short?
+4. **The gardener** – does she look friendly?
+5. **Difficulty** of 4–6 for the 5-year-old and for the 7–8-year-old; which numbers should come next (up to 10? adding?).
+
+**Feedback**
+
+- "The numbers could have sum plays as well." → levels 7 (adding, plates) and 8 (adding, wheeks).
+- Level 6: "kind of hard to get that you need to call the gardener multiple times." → her bubble now shows one squeak picture per wheek wanted, lighting up one by one; a hand taps at the wheek button and the button keeps bouncing until the number is reached; stopping early is no longer judged (the old two-second pause is gone).
+
+- "Level 8 is silly." (It was the gardener asking for "2 + 1" wheeks – but her bubble already showed one picture per wheek, so there was nothing to add up: just press until the pictures are lit.) → replaced by sums on the stepping stones, where the answer has to be chosen. Lesson: a number level needs a **choice**; filling up a row of pictures is not adding.
+
+**Please test next**: is level 6 clear now? Are the sums (7, 8) readable – numbers, plus sign, two groups of dots? Next number ideas: sums up to 10, taking away, numbered stones that are answers to sums.
+
+---
+
+## Iteration 6 – levels and jumping (2026-11-11)
+
+**Feedback that triggered it**: *"The gameplay is good. Darling could try some challenges? We can have levels, the first is very easy, it just needs to do 3 things. The next one could be a little harder, maybe he needs to jump somewhere to get his treat. Or maybe play with numbers? 5 to 6 years old are capable of doing more things."*
+
+**Decided together before building**
+- Jump: a **button**, not automatic. Numbers **and letters** are acceptable. Falling in the pond is fine – "getting wet is fun". Free roaming stays as a "just play" stone. Players are **5 to 7–8**.
+- Ladder of six levels (see missions.md); levels 1–3 (structure + jumping) first, the number levels 4–6 next.
+
+**Built**
+- Trail of level stones after the title screen; progress is saved; a small button in play goes back to the trail.
+- Level 1 (three things), level 2 (log and stump), level 3 (stepping stones to the big lily pad); "just play" is the old endless game, now with jumping too.
+- Green jump button (Space). Jumps are aimed at whatever is roughly ahead; splash, hop back and shake dry when he lands in the water.
+- New in the forest: fallen log, tree stump, three stepping stones, a big lily pad. Three trees that stood in front of them were removed.
+- Keyboard: Space is now jump (it still wheeks in level 1); wheek moved to Q, Z or C.
+- Also published since iteration 5: https://gustavoamigo.github.io/wheek/ (this iteration is not published yet).
+
+**Checked automatically**: levels 1, 2 and 3 played to the end by script; the stump cannot be reached from the ground; walking off the log; a splash and the hop back to the stone; free play through breakfast and drink; desktop and phone layouts; no script errors. **Not checked**: how jumping feels with real fingers, sounds by ear, frame rate on real devices.
+
+**Please test**
+1. **Jump feel** – height, distance, speed. Is the automatic aiming helpful, or does it take the challenge away for the older child?
+2. **Level 2** – does a child work out "log first, then stump" alone? Does the bouncing green button help?
+3. **Level 3** – stones: too easy / too hard? Is the splash funny? Is going back to the last stone right, or should he go back to the shore?
+4. **Trail of stones** – is it clear which stone to press, and what the paw is?
+5. **Difficulty step** from level 1 → 2 → 3 for a 5-year-old and for a 7–8-year-old.
+6. Whether to go on to the number levels (4–6) as planned.
+
+**Feedback**
+
+- Tree fade "not 100% consistent: sometimes, when something happens, the fade disappears and the tree appears again". → fade now tests the real line of sight from the camera, with hysteresis; trees near the camera no longer pop back when he stops.
+- Jumping with the mouse (and probably touch) is "a little hard"; keys are easier. "Maybe the jump needs to snap to the target more." Level 2 felt harder than level 3.
+  → Cause: aiming used the way he happened to face, and on the log a click sent him off the side. Now the button alone snaps to the next useful thing (log → along the log → stump; stone → stone → lily pad), he cannot walk off the log or stump, and pointing while up on something aims at its top.
+  → Open: this makes levels 2–3 very easy for a 7–8-year-old; later levels must carry the challenge.
+
+---
+
 ## Iteration 5 – realistic Darling, chosen look (2026-11-11)
 
 **Built**
@@ -17,7 +84,9 @@ Each iteration: what was built → what to test → feedback received → what t
 
 **Feedback**
 
-_(to be filled in)_
+- Darling: "it's much better, leave it like this."
+- Asked for a full-screen button and install-as-app (built), and for the game to be published on GitHub Pages (done).
+- "The gameplay is good." → wants challenges and levels → iteration 6.
 
 ---
 

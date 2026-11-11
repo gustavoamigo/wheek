@@ -6,7 +6,7 @@ export const input = {
   sx: 0, sy: 0,          // last pointer position (CSS px)
   target: null,          // world-space point the pig is walking to
   onTap: null,           // (sx, sy) => true if the tap was consumed
-  onAction: null,        // ('sniff' | 'wheek')
+  onAction: null,        // ('sniff' | 'wheek' | 'jump')
 };
 
 const MOVE_KEYS = {
@@ -41,7 +41,8 @@ export function initInput(canvas) {
   window.addEventListener('keydown', (e) => {
     if (MOVE_KEYS[e.code]) { input.keys.add(e.code); e.preventDefault(); return; }
     if (e.repeat) return;
-    if (e.code === 'Space') { e.preventDefault(); input.onAction?.('wheek'); }
+    if (e.code === 'Space') { e.preventDefault(); input.onAction?.('jump'); }
+    if (e.code === 'KeyQ' || e.code === 'KeyZ' || e.code === 'KeyC') { e.preventDefault(); input.onAction?.('wheek'); }
     if (e.code === 'KeyX' || e.code === 'KeyE' || e.code === 'Enter') { e.preventDefault(); input.onAction?.('sniff'); }
   });
   window.addEventListener('keyup', (e) => input.keys.delete(e.code));

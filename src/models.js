@@ -294,21 +294,23 @@ export function makePig() {
     const moving = Math.min(1, Math.hypot(p.vx, p.vy) / 200);
     const hopping = p.hopT >= 0;
     const hop = hopping ? Math.sin(Math.PI * p.hopT) : 0;
-    root.position.set(p.x, hop * 88 + Math.abs(Math.sin(p.walkPhase)) * 2 * moving, p.y);
-    root.rotation.y = -p.heading + (hopping ? Math.sin(p.hopT * TAU) * 0.75 : 0);   // the popcorn twist
+    const shaking = p.state === 'shake', nope = p.state === 'nope' || p.state === 'bounce';
+    root.position.set(p.x, (p.z || 0) + hop * 88 + Math.abs(Math.sin(p.walkPhase)) * 2 * moving, p.y);
+    root.rotation.y = -p.heading + (hopping ? Math.sin(p.hopT * TAU) * 0.75 : 0) + (shaking ? Math.sin(t * 38) * 0.22 : nope ? Math.sin(t * 15) * 0.42 : 0);   // the popcorn twist / shaking dry
 
     const breathe = Math.sin(t * 2.4) * 0.012;
     let sx = 1 + breathe, sy = 1 - breathe;
     if (hopping) { const k = Math.cos(p.hopT * TAU); sx -= k * 0.06; sy += k * 0.08; }
     if (p.zoom) { sx += 0.07; sy -= 0.06; }
+    if (p.air) { const k = Math.max(-1, Math.min(1, p.vz / 380)); sx -= Math.abs(k) * 0.05; sy += Math.abs(k) * 0.07; }
     tilt.scale.set(S * sx, S * sy, S);
-    tilt.rotation.z = hopping ? Math.sin(p.hopT * TAU) * 0.28 : (p.zoom ? -0.05 : 0);
-    tilt.rotation.x = Math.sin(p.walkPhase) * 0.045 * moving;                       // waddle
+    tilt.rotation.z = hopping ? Math.sin(p.hopT * TAU) * 0.28 : p.air ? Math.max(-0.35, Math.min(0.35, p.vz / 900)) : (p.zoom ? -0.05 : 0);
+    tilt.rotation.x = shaking ? Math.sin(t * 46) * 0.3 : Math.sin(p.walkPhase) * 0.045 * moving;   // waddle
 
     feet.forEach((f, i) => {
       const ph = p.walkPhase + (i === 0 || i === 3 ? 0 : Math.PI);
       f.position.x = f.userData.x + Math.cos(ph) * 7 * moving;
-      f.position.y = 4 + (hopping ? -2 : Math.max(0, Math.sin(ph)) * 5 * moving);
+      f.position.y = 4 + (hopping || p.air ? -2 : Math.max(0, Math.sin(ph)) * 5 * moving);
     });
 
     let hz = Math.sin(t * 1.3) * 0.025, ny = 0;
@@ -316,11 +318,11 @@ export function makePig() {
     if (p.state === 'sniff') { hz = 0.24 + Math.sin(t * 20) * 0.04; ny = Math.sin(t * 40) * 0.9; }
     else if (p.state === 'wheek') { hz = 0.32; mouth.visible = true; mouth.scale.set(3, 5, 4); }
     else if (p.state === 'drink') { hz = -0.3 + Math.sin(t * 11) * 0.05; mouth.visible = true; mouth.scale.set(2.6, 1.8 + Math.abs(Math.sin(t * 11)) * 1.6, 3.2); }
-    else if (p.state === 'munch') { hz = -0.16 + Math.sin(t * 26) * 0.06; mouth.visible = true; mouth.scale.set(3, 2 + Math.abs(Math.sin(t * 26)) * 2.4, 3.6); }
+    else if (p.state === 'munch' || p.state === 'count') { hz = -0.16 + Math.sin(t * 26) * 0.06; mouth.visible = true; mouth.scale.set(3, 2 + Math.abs(Math.sin(t * 26)) * 2.4, 3.6); }
     head.rotation.z = hz; nose.position.y = noseY0 + 1.2 + ny;
     bend(hz);
 
-    const happy = hopping || p.state === 'munch' || p.state === 'drink';
+    const happy = hopping || shaking || p.state === 'munch' || p.state === 'count' || p.state === 'drink';
     const blink = !happy && (t + p.blinkSeed) % 3.7 < 0.12;
     for (const e of eyes) e.scale.y = happy ? 0.5 : blink ? 0.1 : 1;
   }
@@ -361,6 +363,49 @@ export function bushGeometry(berry) {
   return bushGeo.get(berry);
 }
 export const rockGeometry = merged([blob('#B9BEC9', 0, 14, 0, 33, 22, 27), blob('#D5D9E2', -8, 24, 4, 17, 11, 15), blob('#8EDB6A', 16, 6, 14, 13, 6, 10)]);
+
+// ---- things to jump onto: a fallen log, a tree stump, stepping stones, a big lily pad ----
+const cyl = (rt, rb, n = 20, open = false) => new THREE.CylinderGeometry(rt, rb, 1, n, 1, open);
+export function platformGeometry(o) {
+  const WOOD = '#A8743F', CUT = '#EBCB94', RING = '#D2A766';
+  if (o.kind === 'log') {
+    const len = Math.hypot(o.bx - o.ax, o.by - o.ay) + 44, r = 21, y = o.h - r + 2;
+    const parts = [{ geo: cyl(r, r, 18), color: WOOD, at: [0, y, 0], scale: [1, len, 1], rot: [0, 0, Math.PI / 2] }];
+    for (const s of [-1, 1]) {
+      parts.push({ geo: cyl(r - 3, r - 3, 18), color: CUT, at: [s * (len / 2 + 0.6), y, 0], scale: [1, 1.2, 1], rot: [0, 0, Math.PI / 2] });
+      parts.push({ geo: cyl(r - 11, r - 11, 14), color: RING, at: [s * (len / 2 + 1), y, 0], scale: [1, 1.2, 1], rot: [0, 0, Math.PI / 2] });
+    }
+    parts.push({ geo: cyl(5, 7, 8), color: WOOD, at: [-len * 0.2, y + 8, -r - 4], scale: [1, 18, 1], rot: [-1.1, 0, 0] });      // a broken-off branch
+    for (const [x, z, s] of [[-len * 0.32, 12, 11], [len * 0.12, -13, 9], [len * 0.36, 11, 8]]) parts.push({ color: '#7FCB5B', at: [x, y + r - 9 + Math.abs(z) * 0.1, z], scale: [s * 1.5, 4, s] });   // moss
+    return merged(parts);
+  }
+  if (o.kind === 'stump') {
+    const parts = [
+      { geo: cyl(o.r - 2, o.r + 4, 22), color: WOOD, at: [0, o.h / 2, 0], scale: [1, o.h, 1] },
+      { geo: cyl(o.r - 6, o.r - 6, 22), color: CUT, at: [0, o.h + 0.2, 0], scale: [1, 1.2, 1] },
+      { geo: cyl(o.r - 18, o.r - 18, 18), color: RING, at: [0, o.h + 0.5, 0], scale: [1, 1.2, 1] },
+      { geo: cyl(o.r - 30, o.r - 30, 14), color: CUT, at: [0, o.h + 0.8, 0], scale: [1, 1.2, 1] },
+    ];
+    for (let i = 0; i < 5; i++) { const a = i * 1.257 + 0.4; parts.push({ color: WOOD, at: [Math.cos(a) * (o.r + 2), 5, Math.sin(a) * (o.r + 2)], scale: [15, 10, 11], rot: [0, -a, 0] }); }   // roots
+    parts.push({ color: '#7FCB5B', at: [-o.r + 6, o.h * 0.55, o.r * 0.55], scale: [10, 14, 8] });
+    return merged(parts);
+  }
+  if (o.kind === 'stone') {
+    return merged([
+      { geo: SPH, color: '#B9BEC9', at: [0, 1, 0], scale: [o.r + 3, o.h + 1, o.r - 2] },
+      { geo: SPH, color: '#D5D9E2', at: [-6, 3, -4], scale: [o.r * 0.55, o.h - 0.5, o.r * 0.45] },
+    ]);
+  }
+  // the big lily pad
+  const parts = [
+    { geo: new THREE.CylinderGeometry(1, 1, 1, 30, 1, false, 0.5, TAU - 0.5), color: '#58B24A', at: [0, o.h / 2, 0], scale: [o.r + 6, o.h, o.r + 6] },
+    { geo: new THREE.CylinderGeometry(1, 1, 1, 30, 1, false, 0.62, TAU - 0.74), color: '#7ACB62', at: [0, o.h + 0.3, 0], scale: [o.r - 10, 0.8, o.r - 10] },
+  ];
+  const fx = -o.r + 8, fz = -o.r * 0.55;
+  for (let i = 0; i < 7; i++) { const a = (i / 7) * TAU; parts.push({ geo: petalGeo, color: '#FF9EC4', at: [fx + Math.cos(a) * 9, o.h + 7, fz + Math.sin(a) * 9], scale: [8, 6, 4.5], rot: [0, -a, 0.5] }); }
+  parts.push({ geo: petalGeo, color: '#FFE066', at: [fx, o.h + 9, fz], scale: [5, 5, 5] });
+  return merged(parts);
+}
 
 // ---- small details: flowers, reeds, lily pads ----
 const petalGeo = new THREE.SphereGeometry(1, 6, 4);
@@ -428,13 +473,66 @@ export function makeHouse() {
 }
 
 export function makeGate() {
-  const g = new THREE.Group();
+  const g = new THREE.Group(), door = new THREE.Group();
   const wood = mat('#C98F54'), light = mat('#E0AC72'), dark = mat('#A8743F');
-  const box = (m, w, h, d, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; g.add(b); return b; };
-  for (let z = -230; z <= 230; z += 46) box(wood, 12, 74, 14, 0, 37, z);
-  box(light, 8, 12, 480, 0, 26, 0); box(light, 8, 12, 480, 0, 56, 0);
-  for (const z of [-70, 70]) { box(dark, 22, 104, 22, 0, 52, z); const k = ball('#E0AC72', 14, 14, 14, 0, 110, z); g.add(k); }
-  return g;
+  const box = (to, m, w, h, d, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; to.add(b); return b; };
+  for (let z = -230; z <= 230; z += 46) if (Math.abs(z) > 60) box(g, wood, 12, 74, 14, 0, 37, z);
+  for (const s of [-1, 1]) for (const y of [26, 56]) box(g, light, 8, 12, 170, 0, y, s * 152);
+  for (const z of [-70, 70]) { box(g, dark, 22, 104, 22, 0, 52, z); g.add(ball('#E0AC72', 14, 14, 14, 0, 110, z)); }
+  // the door in the middle swings open on its hinge
+  door.position.set(0, 0, -60);
+  for (const z of [14, 60, 106]) box(door, wood, 12, 74, 14, 0, 37, z);
+  for (const y of [26, 56]) box(door, light, 8, 12, 112, 0, y, 60);
+  g.add(door);
+  return { root: g, door };
+}
+
+// The gardener at the town gate: a big, gentle human seen from guinea-pig height. She faces west, down the path.
+export function makeGardener() {
+  const g = new THREE.Group();
+  const skin = '#F4C9A0', hair = '#8A5A3A', dress = '#F28CA8';
+  for (const s of [-1, 1]) {
+    g.add(ball('#5B7F4A', 22, 12, 15, -6, 12, s * 20));
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(13, 12, 100, 12), mat('#5B8DD9')); leg.position.set(0, 68, s * 20); leg.castShadow = true; g.add(leg);
+  }
+  g.add(ball(dress, 40, 72, 52, 0, 172, 0));
+  g.add(ball('#FFFFFF', 30, 48, 40, -15, 160, 0));                       // apron
+  const head = new THREE.Group(); head.position.set(-4, 270, 0); g.add(head);
+  head.add(ball(skin, 34, 34, 34, 0, 0, 0));
+  head.add(ball(hair, 35, 34, 36, 9, 5, 0));
+  for (const s of [-1, 1]) {
+    head.add(ball(hair, 13, 24, 11, 6, -18, s * 30));
+    head.add(ball('#2B1D16', 4, 5.5, 4, -31.5, 4, s * 12, false));
+    head.add(ball('#FF9DB0', 5, 4, 6.5, -29, -9, s * 20, false));
+  }
+  head.add(ball('#B84A5A', 3, 4, 11, -32.5, -13, 0, false));           // smile
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(60, 62, 5, 24), mat('#F1D58A')); brim.position.y = 26; brim.castShadow = true; head.add(brim);
+  const crown = new THREE.Mesh(new THREE.CylinderGeometry(28, 32, 26, 20), mat('#F1D58A')); crown.position.y = 40; head.add(crown);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(32.5, 33, 8, 20), mat('#F2545B')); band.position.y = 32; head.add(band);
+  const arms = [-1, 1].map((s) => {
+    const arm = new THREE.Group(); arm.position.set(0, 224, s * 48); g.add(arm);
+    const a = new THREE.Mesh(new THREE.CylinderGeometry(9, 8, 84, 10), mat(skin)); a.position.y = -44; a.castShadow = true; arm.add(a);
+    arm.add(ball(dress, 13, 16, 13, 0, -6, 0)); arm.add(ball(skin, 11, 12, 10, 0, -90, 0));
+    return arm;
+  });
+  // o: { wave, nod, no, happy } – each fades from 1 to 0
+  function update(t, o) {
+    head.rotation.z = Math.sin(t * 1.1) * 0.03 + (o.nod > 0 ? Math.sin(t * 13) * 0.22 * Math.min(1, o.nod) : 0) + 0.12;   // looking down a little, at the pig
+    head.rotation.y = o.no > 0 ? Math.sin(t * 13) * 0.5 * Math.min(1, o.no) : 0;
+    arms[1].rotation.x = o.wave > 0 ? -(2.5 + Math.sin(t * 13) * 0.35) * Math.min(1, o.wave * 3) : -0.08;
+    arms[0].rotation.x = o.happy > 0 ? (2.5 + Math.sin(t * 13 + 1) * 0.35) * Math.min(1, o.happy * 3) : 0.08;
+    g.position.y = o.happy > 0 ? Math.abs(Math.sin(t * 9)) * 12 * Math.min(1, o.happy) : 0;
+  }
+  return { root: g, update };
+}
+
+// A plate of n strawberries, set out like the dots on a dice so they are easy to count.
+const PILE = { 1: [[0, 0]], 2: [[-18, 0], [18, 0]], 3: [[-24, 12], [24, 12], [0, -16]], 4: [[-20, -16], [20, -16], [-20, 18], [20, 18]], 5: [[-28, -18], [28, -18], [0, 0], [-28, 20], [28, 20]], 6: [[-28, -18], [0, -18], [28, -18], [-28, 20], [0, 20], [28, 20]] };
+export function makePile(n) {
+  const group = new THREE.Group();
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(56, 52, 5, 26), mat('#7ACB62')); plate.position.y = 2.5; plate.receiveShadow = true; group.add(plate);
+  const berries = PILE[n].map(([x, z]) => { const b = makeFood('strawberry'); b.scale.setScalar(0.62); b.position.set(x, 21, z); group.add(b); return b; });
+  return { group, berries };
 }
 
 // ------------------------------------------------------------------ food --

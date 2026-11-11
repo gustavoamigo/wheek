@@ -5,7 +5,7 @@
 - **3D in the browser with [Three.js](https://threejs.org)** (r170, vendored in `vendor/` so the game works with no internet). No build step: plain ES modules.
 - **No asset files.** Every 3D model is assembled in code from soft round shapes (`src/models.js`); the forest floor is painted once into a texture (`src/ground.js`); all sound is synthesised with WebAudio.
 - **Flat 2D overlay canvas on top of the 3D view** for everything that should always be readable: picture HUD, sparkles, scent trail, speech bubbles, pointing hand.
-- Game logic treats the world as a flat map (`x` = east, `y` = south). Only `src/scene.js` knows it is 3D (map `y` becomes 3D `z`, height is 3D `y`).
+- Game logic treats the world as a flat map (`x` = east, `y` = south) plus the pig's height `z`. Things he can stand on are `world.platforms` (a point or a line with a radius and a top height). `src/scene.js` turns it into 3D (map `y` becomes 3D `z`, height is 3D `y`).
 
 ## Camera (the "can't get lost" rules)
 
@@ -33,8 +33,8 @@ Browsers only allow installing (and the offline copy) from a **secure address**:
 
 | File | What |
 |---|---|
-| `index.html`, `style.css` | Page, title screen, the two action buttons and mute button |
-| `src/main.js` | Game state, update loop, mission logic, hints, 2D overlay + HUD |
+| `index.html`, `style.css` | Page, title screen, trail of level stones, action buttons, mute button |
+| `src/main.js` | Game state, update loop, levels, jumping, hints, 2D overlay + HUD |
 | `src/scene.js` | Three.js scene: lights, shadows, camera, building the forest, per-frame sync |
 | `src/models.js` | 3D models: pig, trees, bushes, food, squirrel, butterflies, nest house, gate |
 | `src/ground.js` | Paints the forest floor texture (grass, path, pond, flowers, hay) |
@@ -51,11 +51,12 @@ Browsers only allow installing (and the offline copy) from a **secure address**:
 ## Test helpers
 
 - `?style=soft|toon|story|real` – art-style presets (`src/style.js`); gallery with screenshots at `/styles.html`. Default is `real` (Natural with smooth trees), chosen by the tester.
-- `?auto` – skip the title screen.
+- `?auto` – skip the title screen and the trail (starts "just play").
+- `?level=1` … `?level=8` – start straight in that level. `?unlock` – all level stones open.
 - `?bot` – the pig plays by itself (sniffs, follows the smell, wheeks at the squirrel). Used for automated playthroughs.
 - `window.__G` – the whole game state, in the browser console.
-- Stars are stored in `localStorage` under `darling.stars`. To reset: `localStorage.removeItem('darling.stars')`.
+- Stars are stored in `localStorage` under `darling.stars`, finished levels under `darling.level`. To reset: `localStorage.clear()`.
 
 ## Keyboard
 
-Arrows / WASD move · Space wheek · X, E or Enter sniff.
+Arrows / WASD move · Space jump (wheek in level 1, where there is no jumping yet) · Q, Z or C wheek · X, E or Enter sniff.

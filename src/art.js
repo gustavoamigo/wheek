@@ -115,11 +115,6 @@ export function drawPond(c, p, t) {
     const wx = p.x - 110 + i * 70 + Math.sin(t * 0.7 + i) * 10, wy = p.y - 40 + (i % 2) * 55;
     c.beginPath(); c.moveTo(wx, wy); c.quadraticCurveTo(wx + 12, wy - 6, wx + 24, wy); c.stroke();
   }
-  for (const [lx, ly, r] of [[-120, 30, 22], [70, 55, 18], [110, -40, 20]]) {
-    c.fillStyle = '#5DBB4B'; c.beginPath(); c.moveTo(p.x + lx, p.y + ly); c.arc(p.x + lx, p.y + ly, r, 0.4, TAU - 0.2); c.fill();
-  }
-  c.fillStyle = '#FF9EC4'; circ(c, p.x - 120, p.y + 26, 7); c.fill();
-  c.fillStyle = '#FFE066'; circ(c, p.x - 120, p.y + 26, 3); c.fill();
 }
 
 export function drawNest(c, h) {
@@ -132,6 +127,20 @@ export function drawNest(c, h) {
     const x = h.x + Math.cos(a) * r, y = h.y + Math.sin(a) * r * 0.45;
     c.beginPath(); c.moveTo(x - 9, y + ((i % 3) - 1) * 4); c.lineTo(x + 9, y - ((i % 3) - 1) * 4); c.stroke();
   }
+}
+
+// Numbers: one big rounded numeral, and a row of dots to count.
+const NUM_FONT = '"Baloo 2", "Fredoka", "Chalkboard SE", "Comic Sans MS", ui-rounded, "Arial Rounded MT Bold", system-ui, sans-serif';
+export function drawNum(c, n, x, y, size, fill = '#6B3FA8', stroke = '#fff') {
+  c.save();
+  c.font = `900 ${size}px ${NUM_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+  if (stroke) { c.lineWidth = size * 0.2; c.strokeStyle = stroke; c.strokeText(n, x, y + size * 0.04); }
+  c.fillStyle = fill; c.fillText(n, x, y + size * 0.04);
+  c.restore();
+}
+export function drawDots(c, n, filled, x, y, r, on = '#FF7FA0', off = '#DDD6E8') {
+  const gap = r * 2.7, x0 = x - ((n - 1) * gap) / 2;
+  for (let i = 0; i < n; i++) { c.fillStyle = i < filled ? on : off; circ(c, x0 + i * gap, y, r); c.fill(); }
 }
 
 // Open mouth + sound waves: the same picture as the wheek button.
