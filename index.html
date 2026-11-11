@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Wheek! Darling's Great Adventures</title>
+<meta name="apple-mobile-web-app-title" content="Wheek!">
+<meta name="theme-color" content="#5CCB5F">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+<canvas id="hud"></canvas>
+
+<div id="ui" class="hidden">
+  <button id="btn-mute" class="round small" aria-label="Sound on or off">
+    <svg viewBox="0 0 64 64">
+      <path d="M12 26h10l14-12v36L22 38H12z" fill="#fff"/>
+      <g id="mute-waves" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round">
+        <path d="M43 24a11 11 0 0 1 0 16"/><path d="M49 17a21 21 0 0 1 0 30"/>
+      </g>
+      <path id="mute-cross" d="M42 24l14 16M56 24L42 40" stroke="#fff" stroke-width="5" stroke-linecap="round" style="display:none"/>
+    </svg>
+  </button>
+
+  <div id="actions">
+    <button id="btn-sniff" class="round big" aria-label="Sniff">
+      <svg viewBox="0 0 64 64">
+        <ellipse cx="25" cy="37" rx="15" ry="12" fill="#F28C8C"/>
+        <ellipse cx="21" cy="32" rx="5" ry="3" fill="#fff" opacity=".45"/>
+        <circle cx="20" cy="39" r="2.6" fill="#B85C5C"/><circle cx="30" cy="39" r="2.6" fill="#B85C5C"/>
+        <g fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round">
+          <path d="M43 25q6-4 4-11"/><path d="M47 35q8-2 9-9"/><path d="M45 46q8 3 12-2"/>
+        </g>
+      </svg>
+    </button>
+    <button id="btn-wheek" class="round big" aria-label="Wheek">
+      <svg viewBox="0 0 64 64">
+        <ellipse cx="17" cy="32" rx="11" ry="14" fill="#A8344F"/>
+        <ellipse cx="17" cy="39" rx="7" ry="6" fill="#FF9DB0"/>
+        <g fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round">
+          <path d="M34 23a13 13 0 0 1 0 18"/><path d="M42 16a23 23 0 0 1 0 32"/><path d="M50 10a32 32 0 0 1 0 44"/>
+        </g>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<button id="btn-full" class="round small corner hidden" aria-label="Full screen">
+  <svg viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <g id="full-open"><path d="M12 24V12h12M40 12h12v12M52 40v12H40M24 52H12V40"/></g>
+    <g id="full-close" style="display:none"><path d="M24 12v12H12M52 24H40V12M40 52V40h12M12 40h12v12"/></g>
+  </svg>
+</button>
+<button id="btn-install" class="round small corner hidden" aria-label="Install as an app">
+  <svg viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 10v28M20 28l12 12 12-12M12 46v8h40v-8"/>
+  </svg>
+</button>
+<div id="ios-install" class="hidden" role="dialog" aria-label="How to install">
+  <div class="card">
+    <svg viewBox="0 0 220 70" fill="none" stroke="#3C4A3A" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M30 14v30M19 24l11-11 11 11M14 34v24h32V34"/>
+      <path d="M78 36h26M94 26l10 10-10 10"/>
+      <rect x="132" y="12" width="46" height="46" rx="10"/><path d="M155 24v22M144 35h22"/>
+    </svg>
+    <p>Share, then "Add to Home Screen"</p>
+  </div>
+</div>
+
+<div id="title">
+  <h1 id="logo" aria-label="Wheek! Darling's Great Adventures">
+    <span class="wheek"><i>W</i><i>h</i><i>e</i><i>e</i><i>k</i><i>!</i></span>
+    <span class="sub">Darling's Great Adventures</span>
+  </h1>
+  <button id="btn-play" class="round" aria-label="Play">
+    <svg viewBox="0 0 64 64"><path d="M24 16l26 16-26 16z" fill="#fff" stroke="#fff" stroke-width="6" stroke-linejoin="round"/></svg>
+  </button>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

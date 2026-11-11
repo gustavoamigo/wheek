@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wheek! – pick a look</title>
+<style>
+  :root { --bg: #F4F8EE; --card: #fff; --ink: #2C3A2A; --soft: #5E6E5A; --line: #DCE6D2; --go: #3E9B4F; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 1500px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { margin: 0 0 4px; font-size: 28px; }
+  p.lead { margin: 0 0 24px; color: var(--soft); max-width: 70ch; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 24px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-bottom: 12px; }
+  h2 { margin: 0; font-size: 22px; }
+  header span { color: var(--soft); flex: 1 1 320px; }
+  a.play { background: var(--go); color: #fff; text-decoration: none; font-weight: 700; padding: 8px 18px; border-radius: 999px; white-space: nowrap; }
+  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+  .shots a { display: block; }
+  .shots img { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Wheek! – pick a look</h1>
+  <p class="lead">Four art directions for the same game. Each row shows Darling up close, the forest at the nest, and the pond. Click a picture to see it full size, or play a style to see it move. Tell me which one you prefer – or which parts of each.</p>
+  <section>
+    <header><h2>Darling, new model</h2><span>One continuous body like a real guinea pig, fluffy fur, his own markings. Shown in the chosen look (D with smooth trees).</span><a class="play" href="./">Play</a></header>
+    <a href="styles/darling.png"><img src="styles/darling.png" alt="Darling from four angles" style="width:100%;max-width:1000px;height:auto;display:block;border-radius:10px"></a>
+  </section>
+  <div id="list"></div>
+</main>
+<script>
+const styles = [
+  ['soft', 'A · Soft toy', 'Even, gentle light. Light textures. Smooth painted fur.'],
+  ['toon', 'B · Cartoon', 'Flat colours in clear light and shade bands, no textures. Cleanest and simplest.'],
+  ['story', 'C · Storybook', 'Warm late-afternoon sun and long shadows, a soft warm frame, fluffy fur, extra grass.'],
+  ['real', 'D · Natural', 'Stronger sunlight and deeper shade, the fluffiest fur, lots of grass, and now the smooth untextured trees from B. This is the default.'],
+];
+document.getElementById('list').innerHTML = styles.map(([k, name, text]) => `
+  <section>
+    <header><h2>${name}</h2><span>${text}</span><a class="play" href="./?style=${k}">Play this style</a></header>
+    <div class="shots">${['pig', 'forest', 'pond'].map((v) => `<a href="styles/${k}-${v}.jpg"><img src="styles/${k}-${v}.jpg" alt="${name}: ${v}" loading="lazy"></a>`).join('')}</div>
+  </section>`).join('');
+</script>
+</body>
+</html>
