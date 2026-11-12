@@ -34,7 +34,7 @@ Design pillars – every feature is checked against these:
 | **Drink** | Laps water | Head down at the pond's edge, lapping sounds and ripples | Automatic: walk to the water drop at the pond | ✅ |
 | **Popcorn** | Jumps and twists in the air when happy | The universal "yay!" – after eating, when a mission is done | Automatic on happy moments; also **tap the pig** any time | ✅ |
 | **Sniff** | Nose always twitching, finds food by smell | Shows a sparkly scent trail on the ground and a picture bubble pointing to the nearest goal | Yellow **nose button** (keys: X, E or Enter) | ✅ |
-| **Wheek** | Loud squeak to demand food/attention | Calls friends. Animals and humans who hear it react: the squirrel drops an apple, the gardener waves – and in level 6 she counts the wheeks | Pink **squeak button** (keys: Q, Z or C) | ✅ |
+| **Wheek** | Loud squeak to demand food/attention | Calls friends. Animals and humans who hear it react: the squirrel drops an apple, the gardener waves – and a friend who shows the squeak bubble opens a popup puzzle (levels 6 and 9) | Pink **squeak button** (keys: Q, Z or C) | ✅ |
 | **Jump** | (Game licence – a popcorn that goes somewhere) | Hop onto a log, a stump, stepping stones. The jump **snaps to a target**: with no steering (just the button, by mouse or one finger) it goes to whatever leads towards the next treat, whichever way he faces – and along the log if the stump is still out of reach. While steering (keys, or a finger held down) it goes to whatever is roughly that way, so a deliberate jump into the pond is still possible. A near miss still lands. Too high from the ground means finding a lower step first. Missing over water = **splash**, a hop back to where he stood, and a shake dry (the tester: "getting wet is fun") | Green **jump button** (key: Space). Appears from level 2 | ✅ |
 | **Purr / rumble** | Content noise when stroked | Being petted by a human friend | 💭 | 💭 |
 | **Hide** | Loves tunnels and hidey houses | Tunnels as shortcuts; hidey house as home/save point | 💭 | 💭 |
@@ -44,6 +44,7 @@ Design pillars – every feature is checked against these:
 - **Move:** press and hold anywhere → the pig walks toward your finger and keeps following it.
   A single tap also works: the pig walks to that spot. Arrow keys / WASD on keyboard.
 - **Buttons**, bottom right, big and round: 👃 sniff (yellow), 🔊 wheek (pink), and from level 2 ⤴ jump (green).
+- **Game controller** (Xbox pad): stick walks, A jump, X wheek, Y sniff; the buttons on the screen wear those letters while the pad is in use. Details in [tech.md](tech.md).
 - Top-right small button with three dots: back to the trail of levels.
 - **Tap the pig:** popcorn! (a toy, never required)
 - **Touch a stone, the log or the stump** that is in reach: he jumps onto it (same as the jump button, but you choose the target).
@@ -70,7 +71,7 @@ Forgiveness rules:
 | "How do I get up there?" | The jump button bounces whenever a treat is waiting up high and there is something in reach to hop onto | ✅ |
 | "Which level?" | Trail of round stones: orange paw = just play, numbered stones = levels. Finished = blue with a star, next = green and bouncing, later ones grey (they only wiggle) | ✅ |
 | "What do I do with this friend?" | Friend shows a speech bubble with the *same picture as the wheek button*, and the wheek button bounces | ✅ |
-| "How many?" | Numbers always come with that many dots. Thought bubble over Darling (plates), speech bubble over the gardener (wheeks), round badges on the numbered stones; the top bar shows the numbers of the level, the current one big and bouncing | ✅ |
+| "How many?" | Numbers always come with that many dots. Thought bubble over Darling (plates and sums), round badges on the numbered stones; the top bar shows the numbers of the level, the current one big and bouncing (for sums: only small pips, the sum is in the bubble) | ✅ |
 | "Did I do it right?" | Chime that rises in pitch with each food, popcorn jumps, stars, confetti, fanfare | ✅ |
 | Spoken encouragement / narrator | 💭 Optional voice ("Yum!") – needs recording, decide later | 💭 |
 

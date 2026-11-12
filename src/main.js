@@ -5,8 +5,10 @@ import * as A from './audio.js';
 import * as Art from './art.js';
 import { buildForest, pushOut, nearestOn, platDist, STEP, W, H } from './world.js';
 import { spawn, burst, updateFx, drawFx } from './fx.js';
-import { input, initInput, keyVector } from './input.js';
+import { input, initInput, keyVector, steerMag } from './input.js';
+import { pad, pollPad } from './gamepad.js';
 import * as S from './scene.js';
+import { openPuzzle, updatePuzzle, drawPuzzle, puzzleOpen, puzzlePad, puzzleProbe, puzzleCloseAt, puzzleSelAt } from './puzzle.js';
 
 const canvas = document.getElementById('game');
 const hud = document.getElementById('hud');
@@ -30,6 +32,7 @@ const G = {
     safe: null,                          // the last place he stood, to go back to after a splash
   },
   level: -1,         // -1 = just play (breakfast and a drink, for ever); 0, 1, 2 = the levels
+  cam: null,         // the level's own camera view, if it has one (see POND_CAM)
   done: 0,           // how many levels are finished
   jumpOn: true,      // is the jump button there? (not yet in level 1)
   task: null,        // the number game of the level, if it has one (see startTask)
@@ -47,9 +50,10 @@ const G = {
   butterflies: [],
 };
 window.__G = G;
+window.__puzzle = puzzleProbe; window.__puzzleClose = puzzleCloseAt; window.__puzzleSel = puzzleSelAt;
 try { G.stars = Math.min(99, parseInt(localStorage.getItem('darling.stars') || '0', 10) || 0); } catch {}
-try { G.done = clamp(parseInt(localStorage.getItem('darling.level') || '0', 10) || 0, 0, 8); } catch {}
-if (params.has('unlock')) G.done = 8;
+try { G.done = clamp(parseInt(localStorage.getItem('darling.level') || '0', 10) || 0, 0, 10); } catch {}
+if (params.has('unlock')) G.done = 10;
 
 const { squirrelPos } = S.initScene(canvas, world);
 function resize() {
@@ -91,23 +95,34 @@ function pickSpot(taken) {
 // The levels. Each one adds one new idea; the goals are pictures in the top bar.
 const PL = world.plat;
 const waterSpot = () => [world.pond.x - 10, world.pond.y + world.pond.ry + 38];
+// The pond levels look at the pond, not at the pig: closer and a little from above, so the stones and
+// their numbers are big. half = how much of the world must fit across half the screen.
+const POND_CAM = { x: world.pond.x - 70, y: world.pond.y + 20, half: 350, tilt: 0.22, follow: 0.3 };
+const NEST = [world.home.x + 40, world.home.y + 20];
+// The maze is looked at from high up, nearly all of it at once, so the way can be planned.
+const MZ = world.maze;
+const MAZE_CAM = { x: MZ.mid.x, y: MZ.mid.y + 40, half: MZ.size * 0.66, tilt: 0.8, follow: 0.3, far: 1.45 };
 const LEVELS = [
   // 1: three easy things – eat, drink, ask the squirrel
-  { jump: false, start: [world.home.x + 40, world.home.y + 20], goals: () => [['carrot', ...FIRST_SPOTS.carrot], ['water', ...waterSpot()], ['apple']] },
+  { jump: false, start: NEST, goals: () => [['carrot', ...FIRST_SPOTS.carrot], ['water', ...waterSpot()], ['apple']] },
   // 2: jump – up onto the log, and from the log onto the stump
   { jump: true, start: [790, 1480], face: -1.57, goals: () => [['dandelion', PL.log.ax + 55, PL.log.ay, PL.log.h], ['strawberry', PL.stump.ax, PL.stump.ay, PL.stump.h]] },
   // 3: jumps in a row – over the stepping stones to the big lily pad
-  { jump: true, start: [1215, 690], face: 0, goals: () => [['carrot', PL.stones[1].ax, PL.stones[1].ay, PL.stones[1].h], ['lettuce', PL.island.ax + 14, PL.island.ay + 6, PL.island.h]] },
+  { jump: true, start: [1215, 690], face: 0, cam: POND_CAM, goals: () => [['carrot', PL.stones[1].ax, PL.stones[1].ay, PL.stones[1].h], ['lettuce', PL.island.ax + 14, PL.island.ay + 6, PL.island.h]] },
   // 4: counting – find the plate with that many strawberries
-  { jump: false, start: [world.home.x + 40, world.home.y + 20], task: 'piles', counts: [4, 2, 5, 3], asks: [3, 5, 4], goals: () => [] },
+  { jump: false, start: NEST, task: 'piles', counts: [4, 2, 5, 3], asks: [3, 5, 4], goals: () => [] },
   // 5: number order – hop the stones 1, 2, 3, 4, 5
-  { jump: true, start: [1215, 690], face: 0, task: 'order', seq: [1, 2, 3, 4, 5], goals: () => [['lettuce', PL.island.ax + 14, PL.island.ay + 6, PL.island.h]] },
-  // 6: count your wheeks – the gardener at the gate shows a number
-  { jump: false, start: [2400, 1110], face: 0, task: 'wheeks', asks: [2, 4, 3], goals: () => [['carrot'], ['strawberry'], ['lettuce']] },
+  { jump: true, start: [1215, 690], face: 0, cam: POND_CAM, task: 'order', seq: [1, 2, 3, 4, 5], goals: () => [['lettuce', PL.island.ax + 14, PL.island.ay + 6, PL.island.h]] },
+  // 6: the gardener's puzzle – wheek at her and a "what comes next?" puzzle opens; solved, she opens the gate and throws a carrot
+  { jump: false, start: [2400, 1110], face: 0, task: 'puzzle', puzzle: 'pattern', who: 'gardener', goals: () => [['carrot']] },
   // 7: adding – "2 + 1": find the plate with that many altogether
-  { jump: false, start: [world.home.x + 40, world.home.y + 20], task: 'piles', counts: [5, 3, 6, 4], asks: [[2, 1], [2, 3], [3, 3]], goals: () => [] },
+  { jump: false, start: NEST, task: 'piles', counts: [5, 3, 6, 4], asks: [[2, 1], [2, 3], [3, 3]], goals: () => [] },
   // 8: adding on the stones – "1 + 1": hop onto the stone with the answer (2, then 4, then 5), then the lily pad
-  { jump: true, start: [1215, 690], face: 0, task: 'order', seq: [2, 4, 5], asks: [[1, 1], [2, 2], [2, 3]], goals: () => [['strawberry', PL.island.ax + 14, PL.island.ay + 6, PL.island.h]] },
+  { jump: true, start: [1215, 690], face: 0, cam: POND_CAM, task: 'order', seq: [2, 4, 5], asks: [[1, 1], [2, 2], [2, 3]], goals: () => [['strawberry', PL.island.ax + 14, PL.island.ay + 6, PL.island.h]] },
+  // 9: the squirrel's puzzle – wheek at him and a game of pairs opens; solved, he drops the apple
+  { jump: false, start: [1010, 1240], face: 0.6, task: 'puzzle', puzzle: 'memory', who: 'squirrel', goals: () => [['apple']] },
+  // 10: the hedge maze – a carrot down a blind alley, then the lettuce in the far corner
+  { jump: false, place: 'maze', start: [MZ.start.x, MZ.start.y], face: -1.57, cam: MAZE_CAM, goals: () => [['carrot', MZ.side.x, MZ.side.y], ['lettuce', MZ.end.x, MZ.end.y]] },
 ];
 
 // ----------------------------------------------------------- number games --
@@ -118,16 +133,16 @@ const popNum = (n, x, h, z) => G.nums.push({ n, x, h, z, t: 0 });
 function startTask(type, L) {
   if (type === 'piles') {
     // four plates of strawberries; he is asked for one number (or one sum) after the other
-    const spots = [[850, 800], [1110, 770], [900, 1215], [1160, 1190]];
-    G.piles = spots.map(([x, y], i) => ({ ...world.nearFree(x, y), n: L.counts[i], left: L.counts[i], wob: 0, show: 0, cool: false, hint: false }));
+    G.piles = world.plates.map(([x, y], i) => ({ ...world.nearFree(x, y), n: L.counts[i], left: L.counts[i], wob: 0, show: 0, cool: false, hint: false }));
     G.task = { type, asks: L.asks, i: 0, tries: 0, bubble: 8 };
   } else if (type === 'order') {
     // seq = the stones to land on, in order; asks = the sums whose answers they are (if it is a sum level)
     G.task = { type, seq: L.seq, asks: L.asks, k: 0, bubble: 1e9 };
     G.foods[0].slot = L.seq.length;                 // the treat comes after the five numbers in the picture bar
   } else {
-    G.task = { type, asks: L.asks, i: 0, count: 0, wait: 0, tries: 0 };
-    G.foods.forEach((f, i) => { Object.assign(f, world.nearFree(GD.x - 190 - i * 45, GD.y + 150 - i * 55)); f.hidden = true; f.thrown = true; f.hx = GD.x - 120; f.hy = GD.y + 70; });
+    // a popup puzzle, kept by a friend: the treat is hers (or his) to give once it is solved
+    G.task = { type, kind: L.puzzle, who: L.who, round: 0, solved: false, opening: 0 };
+    if (L.who === 'gardener') { const f = G.foods[0]; Object.assign(f, world.nearFree(GD.x - 200, GD.y + 150)); f.hidden = true; f.hx = GD.x - 120; f.hy = GD.y + 70; }
   }
   S.setPiles(G.piles);
 }
@@ -136,8 +151,35 @@ const total = (a) => (Array.isArray(a) ? a[0] + a[1] : a);
 const parts = (a) => (Array.isArray(a) ? a : [a]);
 const askNow = () => { const t = G.task, i = t && (t.type === 'order' ? t.k : t.i); return t && t.asks && i < t.asks.length ? t.asks[i] : 0; };
 const asking = () => total(askNow());
-// the gardener only asks while there is no treat lying about
-const gardenerAsks = () => G.task && G.task.type === 'wheeks' && asking() && G.celebT <= 0 && !G.foods.some((f) => !f.eaten && !f.hidden);
+const sumTask = () => !!(G.task && G.task.asks && Array.isArray(G.task.asks[0]));
+
+// ---------------------------------------------------------- popup puzzles --
+// A friend with a puzzle shows the squeak bubble; a wheek close by opens it.
+const puzzleWaits = (who) => { const t = G.task; return !!t && t.type === 'puzzle' && t.who === who && !t.solved && G.celebT <= 0; };
+function askPuzzle() {
+  const t = G.task;
+  if (t.opening > 0 || puzzleOpen()) return;
+  t.opening = 0.75;                                 // let the wheek ring out first
+}
+function showPuzzle() {
+  const t = G.task;
+  if (!t || t.type !== 'puzzle' || G.mode !== 'play') return;
+  G.mode = 'puzzle'; input.target = null; input.pointerDown = false; input.keys.clear();
+  for (const id of ['btn-wheek', 'btn-sniff', 'btn-jump']) $(id).classList.remove('nudge');
+  lastNudge = '';
+  openPuzzle(t.kind, {
+    round: t.round,
+    onClose: (round) => { t.round = round; G.mode = 'play'; G.idleT = 0; },
+    onDone: () => {
+      t.solved = true; G.mode = 'play'; G.idleT = 0; popcorn(3);
+      if (t.who === 'gardener') {                   // she opens the gate and throws him a carrot
+        const f = G.foods[0];
+        G.gateOpen = true; G.gardener.happy = 1.6; G.gardener.wave = 3;
+        f.hidden = false; f.fall = 0; f.fx = GD.x - 30; f.fy = 190; f.fz = GD.y + 30;
+      } else { G.squirrel.wave = 2.2; G.squirrel.dropT = 0.5; A.squirrelChatter(); }
+    },
+  });
+}
 
 function touchPile(pl) {
   const p = G.pig, t = G.task;
@@ -160,24 +202,9 @@ function pileDone() {
 }
 
 function gardenerHears() {
-  const t = G.task, g = G.gardener;
   if (!nearGardener(650)) return;
-  if (!gardenerAsks()) { g.wave = 1.6; spawn({ type: 'heart', x: GD.x, y: 340, z: GD.y, vy: 60, delay: 0.4, life: 1.3, size: 14, color: '#FF7FA0' }); return; }
-  // She counts every wheek and is in no hurry: too few just means "go on". Only when the number
-  // is reached does she wait a moment (in case one more comes), and one too many starts again.
-  t.count++; t.wait = t.count >= asking() ? 1.1 : 0; g.nod = 0.7;
-  const c = t.count; setTimeout(() => { A.chime(c); popNum(c, G.pig.x, 125, G.pig.y); }, 380);
-}
-
-function gardenerJudges() {
-  const t = G.task, g = G.gardener;
-  if (t.count === asking()) {
-    const f = G.foods[t.i];
-    g.happy = 1.6; G.slotPop[t.i] = 1; A.chime(6);
-    f.hidden = false; f.fall = 0; f.fx = GD.x - 30; f.fy = 190; f.fz = GD.y + 30;
-    t.i++; t.tries = 0;
-  } else { g.no = 1; A.nope(); t.tries++; }       // too many or too few: she shakes her head and the dots empty
-  t.count = 0;
+  if (puzzleWaits('gardener')) { G.gardener.nod = 0.7; askPuzzle(); return; }
+  G.gardener.wave = 1.6; spawn({ type: 'heart', x: GD.x, y: 340, z: GD.y, vy: 60, delay: 0.4, life: 1.3, size: 14, color: '#FF7FA0' });
 }
 
 function setPlatforms(numbered) {
@@ -189,14 +216,15 @@ function startRound() {
   G.squirrel.hasApple = false; G.squirrel.dropT = -1;
   G.task = null; G.piles = []; G.nums.length = 0; G.gateOpen = false;
   const L = LEVELS[G.level];
+  G.cam = (L && L.cam) || null; world.place = (L && L.place) || 'forest';
   setPlatforms(!!L && L.task === 'order');
   if (!L || !L.task) S.setPiles(G.piles);
   if (G.level >= 0) {
     L.goals().forEach(([kind, x, y, h = 0], slot) => {
       let hidden = false;
-      if (x === undefined && L.task === 'wheeks') { x = y = 0; }
+      if (x === undefined && kind !== 'apple') { x = y = 0; }
       else if (kind === 'apple') { ({ x, y } = world.nearFree(world.appleTree.x + 130, world.appleTree.y + 110)); hidden = true; G.squirrel.hasApple = true; }
-      else if (!h && kind !== 'water') ({ x, y } = world.nearFree(x, y));
+      else if (!h && kind !== 'water' && !L.place) ({ x, y } = world.nearFree(x, y));
       G.foods.push({ kind, slot, x, y, h, eaten: false, hidden, bite: 0, fall: -1, born: G.t, seed: slot * 2.3 });
     });
     if (L.task) startTask(L.task, L);
@@ -266,6 +294,14 @@ function finishSniff() {
   if (!n) { spawn({ type: 'heart', x: p.x, y: 100, z: p.y, vy: 70, life: 1.2, size: 13, color: '#FF7FA0' }); return; }
   G.hint = { x: n.x, y: n.y, kind: n.kind, t: 10 };
   G.trail = { x0: p.x, y0: p.y, x1: n.x, y1: n.y, t: 0, life: 8 };
+  if (world.place === 'maze') {
+    // in the maze the smell goes round the corners, but only a few steps ahead: the rest is for him to find
+    const cells = MZ.route(MZ.cellAt(p.x, p.y), MZ.cellAt(n.x, n.y)).slice(1, 4).map(MZ.centre);
+    const to = cells.length ? cells[cells.length - 1] : n;
+    G.trail = { pts: [{ x: p.x, y: p.y }, ...cells], x1: to.x, y1: to.y, t: 0, life: 6 };
+    G.hint = null;
+    if (cells.length) n.x = cells[0].x, n.y = cells[0].y;
+  }
   p.heading = Math.atan2(n.y - p.y, n.x - p.x);
   A.chime(1);
 }
@@ -286,7 +322,8 @@ function doWheek() {
   if (nearSquirrel(480)) {
     G.squirrel.wave = 2.2;
     setTimeout(() => A.squirrelChatter(), 500);
-    if (G.squirrel.hasApple && G.squirrel.dropT < 0) G.squirrel.dropT = 0.7;
+    if (puzzleWaits('squirrel')) askPuzzle();
+    else if (G.squirrel.hasApple && G.squirrel.dropT < 0) G.squirrel.dropT = 0.7;
     else if (!G.squirrel.hasApple) spawn({ type: 'heart', x: squirrelPos.x, y: squirrelPos.y + 100, z: squirrelPos.z, vy: 60, delay: 0.5, life: 1.3, size: 13, color: '#FF7FA0' });
   }
 }
@@ -451,12 +488,12 @@ function finishMunch() {
   if (G.eaten === G.foods.length) celebrate();
 }
 
+const CELEB = 6.5;        // how long a celebration lasts
 function celebrate() {
-  G.celebT = 6.5;
-  if (G.task && G.task.type === 'wheeks') { G.gateOpen = true; G.gardener.wave = 4; }
+  G.celebT = CELEB;
   setTimeout(() => { if (G.celebT > 0) { A.fanfare(); popcorn(4); } }, 700);
   setTimeout(() => {
-    if (G.celebT <= 0) return;
+    if (G.celebT <= 0 || G.level >= 0) return;        // (in a level the star comes with the big star panel)
     const [sx, sy] = S.project(G.pig.x, 110 + G.pig.z, G.pig.y);
     G.flyers.push({ type: 'star', sx, sy, t: 0, dur: 1.1 });
   }, 1500);
@@ -540,7 +577,7 @@ function updatePig(dt) {
   let ix = 0, iy = 0, mag = 0;
   if (G.mode === 'play' && p.state === 'idle') {
     const [kx, ky] = keyVector();
-    if (kx || ky) { ix = kx; iy = ky; mag = 1; input.target = null; }
+    if (kx || ky) { ix = kx; iy = ky; mag = steerMag(); input.target = null; }
     else {
       if (input.pointerDown || input.tapPending) {
         let [wx, wy] = S.screenToGround(input.sx, input.sy, p.z);      // on the log, point at the log's top, not the grass under it
@@ -666,7 +703,8 @@ function update(dt) {
   for (const pl of G.piles) { pl.wob = Math.max(0, pl.wob - dt * 1.4); pl.show = Math.max(0, pl.show - dt); }
   for (let i = G.nums.length - 1; i >= 0; i--) { G.nums[i].t += dt; if (G.nums[i].t > 1.1) G.nums.splice(i, 1); }
   if (tk && tk.bubble > 0) tk.bubble -= dt;
-  if (tk && tk.type === 'wheeks' && tk.wait > 0 && p.state !== 'wheek') { tk.wait -= dt; if (tk.wait <= 0 && tk.count > 0) gardenerJudges(); }
+  if (tk && tk.type === 'puzzle' && tk.opening > 0) { tk.opening -= dt; if (tk.opening <= 0) showPuzzle(); }
+  updatePuzzle(dt);
 
   // the pond is alive: a ripple now and then
   if (Math.random() < dt * 0.9) {
@@ -686,7 +724,7 @@ function update(dt) {
 
   if (G.hint) { G.hint.t -= dt; if (G.hint.t <= 0) G.hint = null; }
   if (G.trail) { G.trail.t += dt; if (G.trail.t > G.trail.life) G.trail = null; }
-  for (let i = 0; i < 5; i++) G.slotPop[i] = Math.max(0, G.slotPop[i] - dt * 2.5);
+  for (let i = 0; i < 8; i++) G.slotPop[i] = Math.max(0, G.slotPop[i] - dt * 2.5);
   G.starPop = Math.max(0, G.starPop - dt * 2);
 
   for (let i = G.flyers.length - 1; i >= 0; i--) {
@@ -704,12 +742,11 @@ function update(dt) {
 
   if (G.celebT > 0) {
     G.celebT -= dt;
+    // a level is finished: no long wait – as soon as the fanfare has begun, up comes the big star with "next level"
+    if (G.level >= 0 && G.mode === 'play' && G.celebT < CELEB - 1.7) showDone();
     if (G.celebT <= 0) {
-      if (G.level >= 0) {
-        // level finished: back to the trail, where the next stone is waiting
-        if (G.level + 1 > G.done) { G.done = G.level + 1; try { localStorage.setItem('darling.level', String(G.done)); } catch {} }
-        showLevels(G.level);
-      } else {
+      if (G.level >= 0) { if (G.mode === 'play') showDone(); }
+      else {
         // breakfast makes you thirsty; after the drink a new breakfast round starts
         if (G.mission === 'food') G.mission = 'drink'; else { G.mission = 'food'; G.round++; }
         startRound();
@@ -723,7 +760,7 @@ function update(dt) {
 // Buttons wiggle when they are the thing to try next.
 let lastNudge = '';
 function updateHints() {
-  const nearSq = (G.squirrel.hasApple && G.squirrel.dropT < 0 && nearSquirrel(440)) || (gardenerAsks() && G.task.count < asking() && nearGardener(650));
+  const nearSq = (G.squirrel.hasApple && G.squirrel.dropT < 0 && !G.task && nearSquirrel(440)) || (puzzleWaits('gardener') && nearGardener(650)) || (puzzleWaits('squirrel') && nearSquirrel(440));
   const sniffHint = !nearSq && G.celebT <= 0 && G.idleT > 14 && !G.hint;
   // something to hop onto close by, and a treat still waiting up high?
   const p = G.pig;
@@ -742,13 +779,16 @@ function updateHints() {
 // sparkles, the scent trail, speech bubbles and the picture HUD.
 function drawTrail(c, time) {
   const tr = G.trail; if (!tr) return;
-  const dx = tr.x1 - tr.x0, dy = tr.y1 - tr.y0, d = Math.hypot(dx, dy);
+  const pts = tr.pts || [{ x: tr.x0, y: tr.y0 }, { x: tr.x1, y: tr.y1 }];
+  let d = 0; for (let i = 1; i < pts.length; i++) d += dist(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y);
   if (d < 80) return;
   const len = Math.min(d, 900), fade = clamp((tr.life - tr.t) / 1.5, 0, 1);
   const reach = clamp(tr.t / 0.9, 0, 1) * len, gap = 52, off = (time * 120) % gap;
-  for (let s = 60 + off; s < reach; s += gap) {
-    const k = s / len;
-    const [sx, sy, px, ok] = S.project(tr.x0 + (dx / d) * s, 14 + Math.sin(s * 0.05 - time * 5) * 7, tr.y0 + (dy / d) * s);
+  for (let s = (tr.pts ? 40 : 60) + off; s < reach; s += gap) {
+    let i = 1, left = s;                              // which stretch of the trail this star is on
+    for (; i < pts.length - 1; i++) { const l = dist(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y); if (left <= l) break; left -= l; }
+    const a = pts[i - 1], b = pts[i], l = dist(a.x, a.y, b.x, b.y) || 1, k = s / len;
+    const [sx, sy, px, ok] = S.project(lerp(a.x, b.x, left / l), 14 + Math.sin(s * 0.05 - time * 5) * 7, lerp(a.y, b.y, left / l));
     if (!ok) continue;
     c.globalAlpha = fade * (1 - k * 0.6);
     c.fillStyle = '#FFFBE0'; Art.circ(c, sx, sy, 13 * px); c.fill();
@@ -785,11 +825,11 @@ function drawTaskWorld(c, time) {
       c.globalAlpha = 1;
     }
   }
-  if (t && t.type !== 'wheeks' && asking() && t.bubble > 0 && p.state !== 'count' && G.celebT <= 0) {      // what he is thinking of: "3" and a strawberry, or a sum
+  if (t && t.type !== 'puzzle' && asking() && (t.bubble > 0 || sumTask()) && p.state !== 'count' && G.celebT <= 0) {      // what he is thinking of: "3" and a strawberry, or a sum (a sum stays: it is nowhere else to be seen)
       const [bx, by, k] = S.project(p.x, 130 + p.z, p.y);
       const ps = parts(askNow());
-      const r = clamp(78 * k, 54, 78) * (ps.length > 1 ? 1.2 : 1), x = clamp(bx + r * (t.type === 'order' ? -0.9 : 0.9), r + 8, cw - r - 8), y = clamp(by - r * 0.4, 110 + r, ch - 200);     // (on the stones: to the left, clear of the numbers)
-      c.globalAlpha = clamp(t.bubble * 2, 0, 1);
+      const r = clamp(70 * k, 48, 66) * (ps.length > 1 ? 1.08 : 1), x = clamp(bx + r * (t.type === 'order' ? -0.9 : 0.9), r + 8, cw - r - 8), y = clamp(by - r * 0.4, 110 + r, ch - 200);     // (on the stones: to the left, clear of the numbers)
+      c.globalAlpha = sumTask() ? 1 : clamp(t.bubble * 2, 0, 1);
       Art.drawBubble(c, x, y, r);
       if (ps.length > 1) {
         // a sum: "2 + 3", with the strawberries to count underneath in two groups
@@ -807,32 +847,12 @@ function drawTaskWorld(c, time) {
       }
       c.globalAlpha = 1;
   }
-  if (gardenerAsks() && nearGardener(1100)) {                // the gardener's bubble: wheek this many times
+  if (puzzleWaits('gardener') && t.opening <= 0 && nearGardener(1100)) {                // the gardener has a puzzle: "call me!"
     const [bx, by, k, ok] = S.project(GD.x - 60, 380, GD.y);
     if (ok) {
-      // the number (or the sum) on top, and under it one squeak picture for every wheek she wants:
-      // grey to begin with, each one lights up as he wheeks
-      const ps = parts(askNow()), n = asking(), r = clamp(120 * k, 80, 104), x = clamp(bx - r * 0.6, r + 8, cw - r - 8), y = clamp(by, 110 + r, ch - 220);
+      const r = clamp(70 * k, 46, 60) * (1 + Math.sin(time * 5) * 0.06), x = clamp(bx - r * 0.6, r + 8, cw - r - 8), y = clamp(by, 110 + r, ch - 220);
       Art.drawBubble(c, x, y, r);
-      if (ps.length > 1) {
-        Art.drawNum(c, ps[0], x - r * 0.36, y - r * 0.36, r * 0.66, '#6B3FA8', null);
-        Art.drawNum(c, '+', x, y - r * 0.36, r * 0.5, '#FF7FA0', null);
-        Art.drawNum(c, ps[1], x + r * 0.36, y - r * 0.36, r * 0.66, '#3A8FD9', null);
-      } else Art.drawNum(c, n, x, y - r * 0.36, r * 0.8, '#6B3FA8', null);
-      const step = Math.min(r * 0.5, (r * 1.55) / n), gap = ps.length > 1 ? step * 0.5 : 0, x0 = x - ((n - 1) * step + gap) / 2;
-      for (let i = 0; i < n; i++) {
-        const ix = x0 + i * step + (i >= ps[0] ? gap : 0) + step * 0.12, on = i < t.count;
-        const pop = on && i === t.count - 1 ? 1 + easeOut(clamp(G.gardener.nod / 0.7, 0, 1)) * 0.35 : 1;
-        c.globalAlpha = on ? 1 : 0.3;
-        Art.drawWheekIcon(c, ix, y + r * 0.3, (step / 74) * pop);
-        c.globalAlpha = 1;
-      }
-    }
-    // "press this, again and again": a hand tapping at the squeak button until the first number is done
-    if (t.i === 0 && t.count < asking() && nearGardener(650) && p.state !== 'wheek') {
-      const b = $('btn-wheek').getBoundingClientRect(), press = Math.abs(Math.sin(time * 4.5)) * 16;
-      c.save(); c.translate(b.left + b.width * 0.5, b.top - 10 - press); c.scale(1, -1);      // finger pointing down at the button
-      Art.drawHand(c, 0, 0, 1.15); c.restore();
+      Art.drawWheekIcon(c, x + r * 0.05, y, r / 38);
     }
   }
   for (const m of G.nums) {                                  // "1!" "2!" "3!"
@@ -844,15 +864,19 @@ function drawTaskWorld(c, time) {
   }
 }
 
+// The picture bar at the top. Numbers and foods get a full slot; the sums of an adding level are only
+// small "how many to go" pips, because the sum itself is in the thought bubble.
 function hudLayout() {
   const cw = view.cw;
   const slot = clamp(cw / 9, 44, 66), pad = 10;
-  const t = G.task;
-  const n = Math.max(1, t ? (t.type === 'order' ? t.seq.length + 1 : t.asks.length) : G.foods.length);
-  const w = slot * n + pad * 2, x = cw / 2 - w / 2, y = 12;
-  return { slot, pad, w, x, y, h: slot + pad, starX: 30, starY: cw < 760 ? y + slot + pad + 34 : 44 };
+  const t = G.task, nums = t && (t.asks || t.seq), sums = sumTask();
+  const nPip = sums ? nums.length : 0, pipW = slot * 0.42;
+  const nSlot = Math.max(nPip ? 0 : 1, (nums && !sums ? nums.length : 0) + (t && t.type === 'piles' ? 0 : G.foods.length));
+  const big = nSlot > 0, h = big ? slot + pad : slot * 0.5 + pad;
+  const w = pipW * nPip + slot * nSlot + pad * 2 + (nPip && big ? 4 : 0), x = cw / 2 - w / 2, y = 12;
+  return { slot, pad, w, x, y, h, nPip, pipW, starX: 30, starY: cw < 760 ? y + h + 34 : 44 };
 }
-const slotCenter = (L, i) => [L.x + L.pad + L.slot * (i + 0.5), L.y + L.pad / 2 + L.slot / 2];
+const slotCenter = (L, i) => [L.x + L.pad + (i < L.nPip ? L.pipW * (i + 0.5) : L.nPip * L.pipW + (L.nPip ? 4 : 0) + L.slot * (i - L.nPip + 0.5)), L.y + L.h / 2];
 const CONFETTI = ['#FF7FA0', '#FFC94A', '#6EC6FF', '#8EDB6A', '#C79BFF', '#FF9838'];
 
 function drawOverlay(time) {
@@ -876,10 +900,10 @@ function drawOverlay(time) {
       c.fillRect(-9, -4, 18, 8); c.restore();
     }
   }
-  if (G.mode !== 'play') return;
+  if (G.mode !== 'play' && G.mode !== 'puzzle') return;
 
   // squirrel's "call me!" bubble: the same picture as the pink button
-  if (G.squirrel.hasApple && G.squirrel.dropT < 0 && nearSquirrel(620)) {
+  if (G.squirrel.hasApple && G.squirrel.dropT < 0 && !(G.task && G.task.type === 'puzzle' && G.task.opening > 0) && nearSquirrel(620)) {
     const [bx, by, , ok] = S.project(squirrelPos.x, squirrelPos.y + 120, squirrelPos.z);
     if (ok) {
       const k = 1 + Math.sin(time * 5) * 0.07;
@@ -895,22 +919,26 @@ function drawOverlay(time) {
   // what to find: pictures of the food (or a water drop) that light up when done
   c.fillStyle = 'rgba(255,255,255,.85)'; Art.rrect(c, L.x, L.y, L.w, L.h, L.h / 2); c.fill();
   const tk = G.task;
-  if (tk) {
+  const nums = tk && (tk.asks || tk.seq);
+  if (nums) {
     // number levels: the numbers to do, in order; the one to do now is big and bouncing
-    const list = tk.asks || tk.seq, cur = tk.type === 'order' ? tk.k : tk.i;
-    list.forEach((ask, i) => {
-      const n = total(ask), sum = Array.isArray(ask);
-      if (tk.type === 'wheeks' && G.foods[i] && !G.foods[i].hidden) return;       // her treat takes the number's place
-      const [sx, sy] = slotCenter(L, i), done = i < cur;
-      const k = (i === cur ? 1.12 + Math.sin(time * 5) * 0.1 : 0.9) * (1 + easeOut(G.slotPop[i]) * 0.5);
+    const cur = tk.type === 'order' ? tk.k : tk.i;
+    nums.forEach((ask, i) => {
+      const n = total(ask), [sx, sy] = slotCenter(L, i), done = i < cur, pop = 1 + easeOut(G.slotPop[i]) * 0.5;
+      if (Array.isArray(ask)) {                     // a sum: just a pip – a star when done, a ring for the one being asked
+        const r = L.pipW * 0.3;
+        if (done) Art.drawStar(c, sx, sy, r * 1.15 * pop);
+        else { c.fillStyle = i === cur ? '#6B3FA8' : '#D5CCE6'; Art.circ(c, sx, sy, r * (i === cur ? 0.8 + Math.sin(time * 5) * 0.12 : 0.62)); c.fill(); }
+        return;
+      }
+      const k = (i === cur ? 1.12 + Math.sin(time * 5) * 0.1 : 0.9) * pop;
       c.globalAlpha = done || i === cur ? 1 : 0.3;
-      Art.drawNum(c, sum ? ask.join('+') : n, sx, sy - (tk.type === 'order' ? 0 : L.slot * 0.08), L.slot * (sum ? 0.4 : 0.62) * k, done ? '#5CCB5F' : '#6B3FA8', null);
+      Art.drawNum(c, n, sx, sy - (tk.type === 'order' ? 0 : L.slot * 0.08), L.slot * 0.62 * k, done ? '#5CCB5F' : '#6B3FA8', null);
       if (tk.type !== 'order') Art.drawDots(c, n, done ? n : 0, sx, sy + L.slot * 0.34, L.slot * 0.045, '#5CCB5F', '#B9A8D8');
       c.globalAlpha = 1;
     });
   }
   for (const f of G.foods) {
-    if (tk && tk.type === 'wheeks' && f.hidden) continue;
     const [sx, sy] = slotCenter(L, f.slot);
     const landed = f.eaten && !G.flyers.some((fl) => fl.type === 'food' && fl.slot === f.slot);
     const pop = 1 + easeOut(G.slotPop[f.slot]) * 0.5;
@@ -978,9 +1006,11 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
   last = now;
+  pollPad(dt);
   update(dt);
   S.render(G, dt);
   drawOverlay(G.t);
+  drawPuzzle();
   requestAnimationFrame(frame);
 }
 
@@ -994,23 +1024,49 @@ const STONE_ICON = {
 function showLevels(just = -2) {
   G.mode = 'levels'; G.celebT = 0; G.flyers.length = 0; input.target = null; lastNudge = '';
   for (const id of ['btn-wheek', 'btn-sniff', 'btn-jump']) $(id).classList.remove('nudge');
-  $('title').classList.add('hidden'); $('ui').classList.add('hidden');
+  $('title').classList.add('hidden'); $('ui').classList.add('hidden'); $('done').classList.add('hidden');
   document.body.classList.remove('playing');
   const el = $('trail'); el.innerHTML = '';
   const add = (lv, cls, html) => {
     const b = document.createElement('button');
     b.className = 'round stone ' + cls; b.innerHTML = html;
     b.setAttribute('aria-label', lv < 0 ? 'Just play' : 'Level ' + (lv + 1));
-    b.addEventListener('pointerdown', (e) => {
-      e.preventDefault(); e.stopPropagation(); A.initAudio();
+    b.go = () => {
+      A.initAudio();
       if (lv > G.done) { A.tap(); b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); return; }
       A.chime(Math.max(0, lv) + 1); startLevel(lv);
-    });
+    };
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); b.go(); });
     el.appendChild(b);
   };
   add(-1, 'free', STONE_ICON.free);
   LEVELS.forEach((_, i) => add(i, (i < G.done ? 'done' : i === G.done ? 'next' : 'locked') + (i === just ? ' just' : ''), `<b>${i + 1}</b>` + (i < G.done ? STONE_ICON.star : '')));
   $('levels').classList.remove('hidden');
+  pickStone(Math.min(LEVELS.length, Math.max(G.done, just + 1) + 1));     // the controller starts on the stone that is next
+}
+// With a controller: a ring on one stone, moved with the stick, A plays it.
+let stoneSel = 0;
+function pickStone(i) {
+  const all = $('trail').children;
+  stoneSel = clamp(i, 0, all.length - 1);
+  for (let k = 0; k < all.length; k++) all[k].classList.toggle('sel', k === stoneSel);
+}
+
+// Level finished: a big star over the dancing pig, a green button for the next level and a small one
+// for the trail of stones. It waits for as long as it likes; the confetti goes on behind it.
+function showDone() {
+  if (G.level + 1 > G.done) { G.done = G.level + 1; try { localStorage.setItem('darling.level', String(G.done)); } catch {} }
+  G.stars++; try { localStorage.setItem('darling.stars', String(G.stars)); } catch {}
+  G.mode = 'done'; input.target = null; input.pointerDown = false; lastNudge = '';
+  for (const id of ['btn-wheek', 'btn-sniff', 'btn-jump']) $(id).classList.remove('nudge');
+  const last = G.level + 1 >= LEVELS.length;
+  $('done').classList.toggle('last', last); $('next-num').textContent = last ? '' : G.level + 2;
+  $('ui').classList.add('hidden'); $('done').classList.remove('hidden');
+  A.chime(7); popcorn(4);
+}
+function nextLevel() {
+  if (G.mode !== 'done') return;
+  if (G.level + 1 < LEVELS.length) { A.chime(G.level + 2); startLevel(G.level + 1); } else showLevels(G.level);
 }
 
 function startLevel(lv) {
@@ -1021,7 +1077,7 @@ function startLevel(lv) {
   S.snapCamera();
   startRound();
   G.mode = 'play'; G.idleT = 0;
-  $('levels').classList.add('hidden'); $('title').classList.add('hidden');
+  $('levels').classList.add('hidden'); $('title').classList.add('hidden'); $('done').classList.add('hidden');
   $('ui').classList.remove('hidden');
   $('btn-jump').classList.toggle('hidden', !G.jumpOn);
   document.body.classList.add('playing');
@@ -1048,13 +1104,34 @@ bindButton('btn-sniff', () => { A.initAudio(); doSniff(); });
 bindButton('btn-wheek', () => { A.initAudio(); doWheek(); });
 bindButton('btn-jump', () => { A.initAudio(); doJump(); });
 bindButton('btn-home', () => { A.initAudio(); A.tap(); showLevels(); });
+bindButton('btn-next', () => { A.initAudio(); nextLevel(); });
+bindButton('btn-trail', () => { A.initAudio(); A.tap(); showLevels(G.level); });
+pad.onButton = (b) => {
+  A.initAudio();
+  if (G.mode === 'title') { if (b === 'a' || b === 'menu') startGame(); }
+  else if (G.mode === 'levels') { if (b === 'a') $('trail').children[stoneSel].go(); }
+  else if (G.mode === 'done') { if (b === 'a') nextLevel(); else if (b === 'b') { A.tap(); showLevels(G.level); } }
+  else if (G.mode === 'puzzle') { if (b === 'a') puzzlePad('pick'); else if (b === 'b') puzzlePad('close'); }
+  else if (G.mode === 'play') {
+    if (b === 'a') input.onAction('jump'); else if (b === 'x') doWheek(); else if (b === 'y') doSniff();
+    else if (b === 'menu') { A.tap(); showLevels(); }
+  }
+};
+pad.onNav = (dx, dy) => {
+  if (G.mode === 'levels') { A.tap(); pickStone(stoneSel + (dx || dy)); }
+  else if (G.mode === 'puzzle') puzzlePad('move', dx, dy);
+};
 bindButton('btn-mute', () => {
   A.initAudio();
   A.setMuted(!A.isMuted());
   $('mute-waves').style.display = A.isMuted() ? 'none' : '';
   $('mute-cross').style.display = A.isMuted() ? '' : 'none';
 });
-window.addEventListener('keydown', (e) => { if (G.mode === 'title' && (e.code === 'Space' || e.code === 'Enter')) { e.stopImmediatePropagation(); startGame(); } }, true);
+window.addEventListener('keydown', (e) => {
+  if (e.repeat || (e.code !== 'Space' && e.code !== 'Enter')) return;
+  if (G.mode === 'title') { e.stopImmediatePropagation(); startGame(); }
+  else if (G.mode === 'done') { e.stopImmediatePropagation(); A.initAudio(); nextLevel(); }       // keys work too
+}, true);
 
 // Title: the name pops in letter by letter with a happy wheek. Browsers only allow sound
 // after the first touch or key, so if the wheek was blocked it plays (and the name pops in
@@ -1116,8 +1193,8 @@ initInput(canvas);
 requestAnimationFrame(frame);
 
 // Test helpers (see docs/tech.md): ?auto skips the title, ?bot plays by itself.
-// ?level=1..3 jumps straight into a level (0 = just play).
-G.api = { input, startGame, startLevel, showLevels, doSniff, doWheek, doJump, popcorn, nearestFood, project: S.project };
+// ?level=1..10 jumps straight into a level (0 = just play).
+G.api = { input, startGame, startLevel, showLevels, nextLevel, doSniff, doWheek, doJump, popcorn, nearestFood, project: S.project };
 if (params.has('level')) startLevel(clamp((parseInt(params.get('level'), 10) || 0) - 1, -1, LEVELS.length - 1));
 else if (params.has('auto') || params.has('bot')) startLevel(-1);
 if (params.has('bot')) import('./debug.js').then((m) => m.runBot(G, input));

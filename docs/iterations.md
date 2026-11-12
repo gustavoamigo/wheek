@@ -4,6 +4,44 @@ Each iteration: what was built → what to test → feedback received → what t
 
 ---
 
+## Iteration 8 – popup puzzles, a closer pond (2026-11-12)
+
+**Feedback that triggered it** (tester's 6-year-old in mind)
+- "Level 6 is really dummy. We can remove it."
+- "Level 7, the banner is too big and I think the 5 strawberries is behind a tree."
+- "It needs more challenges for a 6-year-old. Maybe when the gardener is activated, a puzzle opens up."
+- "On the levels focused on the pond, it needs to zoom in more."
+- "I would add popup puzzles and a labyrinth as well. The scenery is shared among the levels, that's really boring."
+
+**Built**
+- Level 6 (count your wheeks) is gone. In its place: wheek at the gardener and a popup puzzle opens – *what comes next?*, three rounds. Solved → gate open, a carrot.
+- New level 9: the squirrel's puzzle – pairs, 6 cards and then 12. Solved → he drops the apple.
+- Level 7 and 8: the top bar no longer repeats the three sums; it is three small pips (a star for each one done). The thought bubble is smaller and, in the adding levels, stays up.
+- No tree, bush or rock may stand between a plate of strawberries and the camera (same rule as for the nest and the log).
+- Pond levels 3, 5 and 8: the camera comes closer, looks a little from above and stays on the pond. On an upright phone it is narrower still and follows the pig.
+- New level 10: the hedge maze, the first place that is not the forest. Seen from high up; a carrot down a blind alley and the lettuce in the far corner; sniffing shows only the next three steps.
+- Saved progress keeps working: the new puzzle level sits in the old level 6's place, levels 9 and 10 are added at the end.
+
+- Level finished (from feedback on the test build, see below): no more five-second wait. As soon as the fanfare has begun (1.7 s) a big star comes up over the dancing pig, with a green **next level** button (showing its number) and a small one back to the stones. It waits as long as the child likes; Space or Enter also go on. After the last level only the stones button is there.
+
+- Game controller (asked for, to test in Edge on an Xbox): stick or D-pad walks, A jump, X wheek, Y sniff, Menu back to the stones; a ring steps over the stones and over the choices and cards of the popup puzzles, A picks, B puts a puzzle away. With an Xbox pad the buttons on the screen wear its letters.
+
+**Checked automatically**: levels 6, 9 and 10 played to the star by script (real taps in the puzzles, wrong picks, closing and reopening; in the maze a walk straight at the treat is stopped by the hedges, then the real way is walked); every level and free play start and end with no script errors; screenshots in landscape, 4:3 and upright phone. The controller was checked with a pretend Xbox pad in the test browser: title, stones, walking, wheek, the pattern puzzle, the star panel and Menu, letters on and off. **Not checked**: real fingers, a real controller on a real Xbox, sound, frame rate on a real device, whether a child understands.
+
+**Feedback on the test build**
+- "When you complete a level, it takes like 5 seconds to go back to the screen for the next level. Maybe you could show a panel with congrats or something exciting, and a button to play next level." → the big star panel above. Lesson: a celebration must not be a wait; hand the child the next thing to press at once.
+
+**Not built yet** (planned, see [missions.md](missions.md)): the gardener's garden and the town as places, a bigger maze with number gates, three more puzzle kinds, numbers up to 10.
+
+**Please test**
+1. **Level 6** – is the squeak bubble at the gardener enough to make a child wheek at her? Is the pattern puzzle the right difficulty; is the third round (three foods) too easy?
+2. **Level 9** – 12 cards: fun or too long?
+3. **Pond levels** – is the pond big enough now on your device? Anything cut off?
+4. **Level 7** – all four plates easy to see?
+5. **Level 10** – is steering through the maze comfortable with a finger held down? Too easy, too hard? Is the sniff trail (three steps) the right amount of help?
+
+---
+
 ## Iteration 7 – number levels (2026-11-11)
 
 **Feedback that triggered it**: levels 1–3 with the snapping jump – *"you can move to the next levels, it's good."*

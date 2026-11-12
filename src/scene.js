@@ -17,7 +17,7 @@ const trees = [];          // { t, canopy, a }
 const foodMeshes = new Map();
 const butterflies = [];
 const camPos = new THREE.Vector3(), camAim = new THREE.Vector3();
-let camReady = false, zoomK = 0.55;
+let camReady = false, zoomK = 0.55, tiltK = 0;
 
 const FOV = 42;
 const CAM_UP = 500, CAM_BACK = 700;          // third-person: above and behind (south of) the pig, always looking north
@@ -100,6 +100,31 @@ export function initScene(canvas, w) {
       blades.setColorAt(i, col.setHSL(0.26 + rr() * 0.06, 0.62, 0.36 + rr() * 0.1));
     });
     scene.add(blades);
+  }
+
+  // the hedge maze, out to the east: a sandy floor, bumpy hedges, a few trees behind it
+  const mz = world.maze, hedgeMat = M.surf({ color: '#ffffff', map: leafTex });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(mz.size + 60, mz.size + 60).rotateX(-Math.PI / 2), M.surf({ color: '#EBD7A8' }));
+  floor.position.set(mz.mid.x, 0.5, mz.mid.y); floor.receiveShadow = true; scene.add(floor);
+  let hs = 7; const hr = () => ((hs = (hs * 16807) % 2147483647) / 2147483647);
+  const bumps = [];
+  for (const o of mz.walls) {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(o.w - 6, 46, o.h - 6), M.mat('#4FA653'));
+    box.position.set(o.x + o.w / 2, 23, o.y + o.h / 2); box.castShadow = true; box.receiveShadow = true; scene.add(box);
+    const long = Math.max(o.w, o.h), k = Math.max(2, Math.round(long / 36));
+    for (let i = 0; i < k; i++) { const f = (i + 0.5) / k; bumps.push([o.w > o.h ? o.x + o.w * f : o.x + o.w / 2, o.w > o.h ? o.y + o.h / 2 : o.y + o.h * f]); }
+  }
+  const hedge = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), hedgeMat, bumps.length);
+  bumps.forEach(([x, y], i) => {
+    mtx.compose(v.set(x + (hr() - 0.5) * 6, 44 + hr() * 8, y + (hr() - 0.5) * 6), q.identity(), s.set(25 + hr() * 5, 20 + hr() * 7, 25 + hr() * 5)); hedge.setMatrixAt(i, mtx);
+    hedge.setColorAt(i, col.setHSL(0.31 + hr() * 0.05, 0.5, 0.42 + hr() * 0.1));
+  });
+  hedge.castShadow = true; scene.add(hedge);
+  for (let i = 0; i < 9; i++) {
+    const a = Math.PI * (1.05 + (i / 8) * 0.9), g = new THREE.Group(), sc = 1.05 + hr() * 0.4;       // an arc round the far side
+    const canopy = new THREE.Mesh(M.canopyGeometry((hr() * 4) | 0, false), M.surf({ vertexColors: true, map: leafTex }));
+    canopy.castShadow = true; g.add(new THREE.Mesh(M.trunkGeometry, trunkMat), canopy);
+    g.position.set(mz.mid.x + Math.cos(a) * (mz.size * 0.78 + hr() * 60), 0, mz.mid.y + Math.sin(a) * (mz.size * 0.72 + hr() * 60)); g.scale.setScalar(sc); scene.add(g);
   }
 
   const house = M.makeHouse(); house.position.set(world.house.x, 0, world.house.y - 30); scene.add(house);
@@ -215,16 +240,27 @@ function updateCamera(G, dt) {
   const p = G.pig;
   // portrait screens pull the camera back so there is still room to see sideways
   const fit = clamp(1.3 / camera.aspect, 1, 2.1);
-  zoomK = lerp(zoomK, G.mode === 'title' ? 0.55 : 1, 1 - Math.exp(-dt * 2));
+  // A level can ask for its own view (G.cam): closer, a little steeper, and held on a place (the pond)
+  // more than on the pig, so the whole puzzle stays in the picture and its numbers are big enough to read.
+  const cv = G.mode === 'title' ? null : G.cam;
+  const reach = Math.tan((FOV * Math.PI) / 360) * Math.hypot(CAM_UP, CAM_BACK) * camera.aspect;     // half the width seen at d = 1
+  // (an upright phone cannot show the whole pond big enough: there the view is narrower and follows the pig more)
+  const tall = camera.aspect < 1, follow = cv ? (tall ? 0.6 : cv.follow) : 1;
+  const want = G.mode === 'title' ? 0.55 : cv ? clamp((cv.half * (tall ? 0.72 : 1)) / reach, 0.5, fit * (tall ? 0.8 : cv.far || 1)) / fit : 1;
+  zoomK = lerp(zoomK, want, 1 - Math.exp(-dt * 2));
+  tiltK = lerp(tiltK, cv ? cv.tilt : 0, 1 - Math.exp(-dt * 2));
   const d = fit * zoomK;
-  const lead = G.mode === 'title' ? 0 : 0.3;
-  const halfW = Math.tan((FOV * Math.PI) / 360) * Math.hypot(CAM_UP, CAM_BACK) * d * camera.aspect;
+  const lead = G.mode === 'title' || cv ? 0 : 0.3;
+  const halfW = reach * d;
   const mx = Math.min(520, halfW * 0.55);
-  const tx = clamp(p.x + p.vx * lead, mx, W - mx), tz = clamp(p.y + p.vy * lead, 300, H - 60);
+  let tx = p.x + p.vx * lead, tz = p.y + p.vy * lead;
+  if (cv) { tx = lerp(cv.x, tx, follow); tz = lerp(cv.y, tz, follow); }
+  else { tx = clamp(tx, mx, W - mx); tz = clamp(tz, 300, H - 60); }
   const k = camReady ? 1 - Math.exp(-dt * 4) : 1;
+  if (!camReady) { zoomK = want; tiltK = cv ? cv.tilt : 0; }
   camReady = true;
   camAim.x = lerp(camAim.x, tx, k); camAim.z = lerp(camAim.z, tz, k); camAim.y = 30;
-  camPos.set(camAim.x, CAM_UP * d, camAim.z + CAM_BACK * d);
+  camPos.set(camAim.x, CAM_UP * d * (1 + tiltK), camAim.z + CAM_BACK * d * (1 - tiltK * 0.5));
   camera.position.copy(camPos);
   camera.lookAt(camAim.x, camAim.y, camAim.z - 70 * d);
   camera.updateMatrixWorld();
@@ -258,6 +294,7 @@ export function render(G, dt) {
   for (const [pl] of piles) if (pl.left > 0) focus.push({ x: pl.x, h: 30, z: pl.y, pad: 60 });
   if (Math.abs(p.x - world.gardener.x) < 900) focus.push({ x: world.gardener.x, h: 240, z: world.gardener.y, pad: 110 });   // keep the gardener's face in view
   const front = clamp(p.y, 300, H - 60);        // where the camera looks when the pig stands still
+  const downAt = Math.min(440, (camPos.z - front) * 0.63);       // (a camera that has come closer ducks the trees sooner)
   for (const tr of trees) {
     let hide = false;
     for (const f of focus) if (hides(tr, f)) { hide = true; break; }
@@ -273,7 +310,7 @@ export function render(G, dt) {
     // trees right in front of the camera shrink into the ground so they never block the view
     // (measured from the pig, not from the camera's look-ahead, so stopping does not pop them back)
     const near = tr.t.y - front;
-    if (near > 440) tr.down = true; else if (near < 390) tr.down = false;
+    if (near > downAt) tr.down = true; else if (near < downAt - 50) tr.down = false;
     const g = tr.down ? 0 : 1;
     if (Math.abs(tr.grow - g) > 0.002) {
       tr.grow = lerp(tr.grow, g, 1 - Math.exp(-dt * 7));

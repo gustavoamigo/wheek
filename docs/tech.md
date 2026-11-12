@@ -14,6 +14,8 @@
 - Looks a little ahead in the direction the pig is running.
 - Tree tops that would hide the pig or a piece of food turn see-through; trees right in front of the lens shrink into the ground.
 - Portrait phones pull the camera back so there is room to see sideways.
+- A level can have its own view (`cam` in `LEVELS`, read as `G.cam` in `updateCamera`): how much world must fit across the screen, how steep, and how much it follows the pig rather than a fixed place. The pond levels and the maze use it.
+- A level can be in another **place** (`place` in `LEVELS`, kept in `world.place`). The maze stands far to the east of the forest on the same map; while he is there only the maze's hedges and edges are solid.
 - Tuning values at the top of `src/scene.js`: `FOV`, `CAM_UP`, `CAM_BACK`.
 
 ## Run it
@@ -39,11 +41,13 @@ Browsers only allow installing (and the offline copy) from a **secure address**:
 | `src/models.js` | 3D models: pig, trees, bushes, food, squirrel, butterflies, nest house, gate |
 | `src/ground.js` | Paints the forest floor texture (grass, path, pond, flowers, hay) |
 | `src/style.js` | Art-style presets: material type, light, fur fluffiness, extra grass |
-| `src/world.js` | Forest layout (seeded, so it is the same every time), collision |
+| `src/world.js` | Forest layout and the hedge maze (both seeded, so they are the same every time), collision |
 | `src/art.js` | 2D drawing: HUD food pictures, stars, bubbles, hand; ground decorations |
 | `src/audio.js` | All sounds and the music loop |
 | `src/fx.js` | Particles (stars, puffs, hearts, notes), positioned in 3D, drawn on the overlay |
+| `src/puzzle.js` | Popup puzzles (what comes next?, pairs): own canvas on top of everything |
 | `src/input.js` | Touch / mouse / keyboard |
+| `src/gamepad.js` | Game controller |
 | `src/debug.js` | Autopilot for smoke tests (only loaded with `?bot`) |
 | `vendor/three.module.min.js` | Three.js (MIT licence, see `vendor/three.LICENSE`) |
 | `tools/serve.py` | Static file server |
@@ -52,11 +56,26 @@ Browsers only allow installing (and the offline copy) from a **secure address**:
 
 - `?style=soft|toon|story|real` – art-style presets (`src/style.js`); gallery with screenshots at `/styles.html`. Default is `real` (Natural with smooth trees), chosen by the tester.
 - `?auto` – skip the title screen and the trail (starts "just play").
-- `?level=1` … `?level=8` – start straight in that level. `?unlock` – all level stones open.
+- `?level=1` … `?level=10` – start straight in that level. `?unlock` – all level stones open.
 - `?bot` – the pig plays by itself (sniffs, follows the smell, wheeks at the squirrel). Used for automated playthroughs.
-- `window.__G` – the whole game state, in the browser console.
+- `window.__G` – the whole game state, in the browser console. `window.__puzzle()` – where a right (and a wrong) touch would be in the open popup puzzle.
 - Stars are stored in `localStorage` under `darling.stars`, finished levels under `darling.level`. To reset: `localStorage.clear()`.
 
 ## Keyboard
 
 Arrows / WASD move · Space jump (wheek in level 1, where there is no jumping yet) · Q, Z or C wheek · X, E or Enter sniff.
+
+## Game controller
+
+`src/gamepad.js`, read once a frame. Made for an Xbox pad in Edge; any pad with the standard layout works.
+
+| Control | In play | Elsewhere |
+|---|---|---|
+| Left stick / D-pad | Walk (a full push runs, and kept up becomes zoomies) | Moves the ring over the stones, and over the choices or cards of a popup puzzle |
+| A | Jump (wheek in levels without jumping, like Space) | Play / pick / next level |
+| X | Wheek | |
+| Y | Sniff | |
+| B | | Puts a puzzle away; on the star panel, back to the stones |
+| Menu (☰) | Back to the stones | Starts the game on the title screen |
+
+While an Xbox pad is in use the on-screen buttons wear its letters (`body.pad.xbox`); a touch or a mouse click hides them again. Other pads work the same but show no letters, since theirs differ. The page asks Edge on Xbox for the real pad instead of its stick-driven mouse pointer (`navigator.gamepadInputEmulation`).
