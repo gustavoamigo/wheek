@@ -5,9 +5,10 @@ import * as A from './audio.js';
 import * as Art from './art.js';
 import { buildForest, pushOut, nearestOn, platDist, STEP, W, H } from './world.js';
 import { spawn, burst, updateFx, drawFx } from './fx.js';
-import { input, initInput, keyVector } from './input.js';
+import { input, initInput, keyVector, steerMag } from './input.js';
+import { pad, pollPad } from './gamepad.js';
 import * as S from './scene.js';
-import { openPuzzle, updatePuzzle, drawPuzzle, puzzleOpen, puzzleProbe, puzzleCloseAt } from './puzzle.js';
+import { openPuzzle, updatePuzzle, drawPuzzle, puzzleOpen, puzzlePad, puzzleProbe, puzzleCloseAt, puzzleSelAt } from './puzzle.js';
 
 const canvas = document.getElementById('game');
 const hud = document.getElementById('hud');
@@ -49,7 +50,7 @@ const G = {
   butterflies: [],
 };
 window.__G = G;
-window.__puzzle = puzzleProbe; window.__puzzleClose = puzzleCloseAt;
+window.__puzzle = puzzleProbe; window.__puzzleClose = puzzleCloseAt; window.__puzzleSel = puzzleSelAt;
 try { G.stars = Math.min(99, parseInt(localStorage.getItem('darling.stars') || '0', 10) || 0); } catch {}
 try { G.done = clamp(parseInt(localStorage.getItem('darling.level') || '0', 10) || 0, 0, 10); } catch {}
 if (params.has('unlock')) G.done = 10;
@@ -576,7 +577,7 @@ function updatePig(dt) {
   let ix = 0, iy = 0, mag = 0;
   if (G.mode === 'play' && p.state === 'idle') {
     const [kx, ky] = keyVector();
-    if (kx || ky) { ix = kx; iy = ky; mag = 1; input.target = null; }
+    if (kx || ky) { ix = kx; iy = ky; mag = steerMag(); input.target = null; }
     else {
       if (input.pointerDown || input.tapPending) {
         let [wx, wy] = S.screenToGround(input.sx, input.sy, p.z);      // on the log, point at the log's top, not the grass under it
@@ -1005,6 +1006,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
   last = now;
+  pollPad(dt);
   update(dt);
   S.render(G, dt);
   drawOverlay(G.t);
@@ -1029,16 +1031,25 @@ function showLevels(just = -2) {
     const b = document.createElement('button');
     b.className = 'round stone ' + cls; b.innerHTML = html;
     b.setAttribute('aria-label', lv < 0 ? 'Just play' : 'Level ' + (lv + 1));
-    b.addEventListener('pointerdown', (e) => {
-      e.preventDefault(); e.stopPropagation(); A.initAudio();
+    b.go = () => {
+      A.initAudio();
       if (lv > G.done) { A.tap(); b.classList.remove('no'); void b.offsetWidth; b.classList.add('no'); return; }
       A.chime(Math.max(0, lv) + 1); startLevel(lv);
-    });
+    };
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); b.go(); });
     el.appendChild(b);
   };
   add(-1, 'free', STONE_ICON.free);
   LEVELS.forEach((_, i) => add(i, (i < G.done ? 'done' : i === G.done ? 'next' : 'locked') + (i === just ? ' just' : ''), `<b>${i + 1}</b>` + (i < G.done ? STONE_ICON.star : '')));
   $('levels').classList.remove('hidden');
+  pickStone(Math.min(LEVELS.length, Math.max(G.done, just + 1) + 1));     // the controller starts on the stone that is next
+}
+// With a controller: a ring on one stone, moved with the stick, A plays it.
+let stoneSel = 0;
+function pickStone(i) {
+  const all = $('trail').children;
+  stoneSel = clamp(i, 0, all.length - 1);
+  for (let k = 0; k < all.length; k++) all[k].classList.toggle('sel', k === stoneSel);
 }
 
 // Level finished: a big star over the dancing pig, a green button for the next level and a small one
@@ -1095,6 +1106,21 @@ bindButton('btn-jump', () => { A.initAudio(); doJump(); });
 bindButton('btn-home', () => { A.initAudio(); A.tap(); showLevels(); });
 bindButton('btn-next', () => { A.initAudio(); nextLevel(); });
 bindButton('btn-trail', () => { A.initAudio(); A.tap(); showLevels(G.level); });
+pad.onButton = (b) => {
+  A.initAudio();
+  if (G.mode === 'title') { if (b === 'a' || b === 'menu') startGame(); }
+  else if (G.mode === 'levels') { if (b === 'a') $('trail').children[stoneSel].go(); }
+  else if (G.mode === 'done') { if (b === 'a') nextLevel(); else if (b === 'b') { A.tap(); showLevels(G.level); } }
+  else if (G.mode === 'puzzle') { if (b === 'a') puzzlePad('pick'); else if (b === 'b') puzzlePad('close'); }
+  else if (G.mode === 'play') {
+    if (b === 'a') input.onAction('jump'); else if (b === 'x') doWheek(); else if (b === 'y') doSniff();
+    else if (b === 'menu') { A.tap(); showLevels(); }
+  }
+};
+pad.onNav = (dx, dy) => {
+  if (G.mode === 'levels') { A.tap(); pickStone(stoneSel + (dx || dy)); }
+  else if (G.mode === 'puzzle') puzzlePad('move', dx, dy);
+};
 bindButton('btn-mute', () => {
   A.initAudio();
   A.setMuted(!A.isMuted());

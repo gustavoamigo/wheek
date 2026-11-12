@@ -5,6 +5,7 @@ export const input = {
   tapPending: false,     // a quick tap that still has to become a walk target
   sx: 0, sy: 0,          // last pointer position (CSS px)
   target: null,          // world-space point the pig is walking to
+  stick: null,           // game controller: { x, y, mag } while its stick or D-pad is pushed (see gamepad.js)
   onTap: null,           // (sx, sy) => true if the tap was consumed
   onAction: null,        // ('sniff' | 'wheek' | 'jump')
 };
@@ -18,8 +19,11 @@ export function keyVector() {
   let x = 0, y = 0;
   for (const k of input.keys) { const v = MOVE_KEYS[k]; if (v) { x += v[0]; y += v[1]; } }
   const m = Math.hypot(x, y);
+  if (!m && input.stick) return [input.stick.x, input.stick.y];
   return m ? [x / m, y / m] : [0, 0];
 }
+// how hard he is being steered: keys are all or nothing, a stick can be pushed gently
+export const steerMag = () => (input.stick && ![...input.keys].some((k) => MOVE_KEYS[k]) ? input.stick.mag : 1);
 
 export function initInput(canvas) {
   canvas.addEventListener('pointerdown', (e) => {

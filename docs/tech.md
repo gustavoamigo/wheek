@@ -47,6 +47,7 @@ Browsers only allow installing (and the offline copy) from a **secure address**:
 | `src/fx.js` | Particles (stars, puffs, hearts, notes), positioned in 3D, drawn on the overlay |
 | `src/puzzle.js` | Popup puzzles (what comes next?, pairs): own canvas on top of everything |
 | `src/input.js` | Touch / mouse / keyboard |
+| `src/gamepad.js` | Game controller |
 | `src/debug.js` | Autopilot for smoke tests (only loaded with `?bot`) |
 | `vendor/three.module.min.js` | Three.js (MIT licence, see `vendor/three.LICENSE`) |
 | `tools/serve.py` | Static file server |
@@ -63,3 +64,18 @@ Browsers only allow installing (and the offline copy) from a **secure address**:
 ## Keyboard
 
 Arrows / WASD move · Space jump (wheek in level 1, where there is no jumping yet) · Q, Z or C wheek · X, E or Enter sniff.
+
+## Game controller
+
+`src/gamepad.js`, read once a frame. Made for an Xbox pad in Edge; any pad with the standard layout works.
+
+| Control | In play | Elsewhere |
+|---|---|---|
+| Left stick / D-pad | Walk (a full push runs, and kept up becomes zoomies) | Moves the ring over the stones, and over the choices or cards of a popup puzzle |
+| A | Jump (wheek in levels without jumping, like Space) | Play / pick / next level |
+| X | Wheek | |
+| Y | Sniff | |
+| B | | Puts a puzzle away; on the star panel, back to the stones |
+| Menu (☰) | Back to the stones | Starts the game on the title screen |
+
+While an Xbox pad is in use the on-screen buttons wear its letters (`body.pad.xbox`); a touch or a mouse click hides them again. Other pads work the same but show no letters, since theirs differ. The page asks Edge on Xbox for the real pad instead of its stick-driven mouse pointer (`navigator.gamepadInputEmulation`).

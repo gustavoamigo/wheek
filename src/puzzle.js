@@ -17,6 +17,28 @@ const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = (Mat
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
 export const puzzleOpen = () => !!P;
+
+// Game controller: the stick moves a ring from one choice (or card) to the next, A picks, B puts the puzzle away.
+let padOn = false;
+const picks = () => P.hit.filter((o) => !o.close);
+const selected = () => { const it = picks(); return it.find((o) => o.i === P.sel) || it[0]; };
+export function puzzlePad(cmd, dx = 0, dy = 0) {
+  if (!P || P.closing > 0 || P.open < 0.6) return;
+  padOn = true;
+  if (cmd === 'close') { A.tap(); P.closing = 0.001; P.result = 'close'; return; }
+  const cur = selected(); if (!cur) return;
+  P.sel = cur.i;
+  if (cmd === 'pick') { tap(cur.x + cur.w / 2, cur.y + cur.h / 2); return; }
+  // the nearest one in that direction (a little off to the side is fine)
+  let best = null, bs = Infinity;
+  for (const o of picks()) {
+    const ox = o.x + o.w / 2 - (cur.x + cur.w / 2), oy = o.y + o.h / 2 - (cur.y + cur.h / 2), along = ox * dx + oy * dy, off = Math.abs(ox * dy) + Math.abs(oy * dx);
+    if (o === cur || along <= 1 || off > along) continue;
+    if (along + off * 2 < bs) { bs = along + off * 2; best = o; }
+  }
+  if (best) { P.sel = best.i; A.tap(); }
+}
+export const puzzleSelAt = () => { const o = P && padOn && selected(); return o && [o.x + o.w / 2, o.y + o.h / 2]; };
 export const puzzleCloseAt = () => { const o = P && P.hit.find((q) => q.close); return o && [o.x + o.w / 2, o.y + o.h / 2]; };
 // for automated playthroughs: where a right (and a wrong) touch would be just now
 export function puzzleProbe() {
@@ -40,7 +62,7 @@ export function puzzleProbe() {
 export function openPuzzle(kind, { round = 0, onDone, onClose } = {}) {
   if (!el) {
     el = document.getElementById('puzzle'); c = el.getContext('2d');
-    el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (P) tap(e.clientX, e.clientY); });
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); padOn = false; if (P) tap(e.clientX, e.clientY); });
   }
   P = { kind, round, rounds: kind === 'pattern' ? PATTERN_ROUNDS.length : MEMORY_ROUNDS.length, t: 0, open: 0, closing: 0, doneT: -1, onDone, onClose, bits: [], hit: [] };
   startRound();
@@ -172,6 +194,13 @@ export function drawPuzzle() {
 
   const ax = x0 + 18, ay = y0 + top, aw = w - 36, ah = h - top - 18;       // the room for the puzzle itself
   if (P.kind === 'pattern') drawPattern(ax, ay, aw, ah); else drawMemory(ax, ay, aw, ah);
+  const sel = padOn && P.doneT < 0 && selected();
+  if (sel) {                                         // the controller's ring
+    const g = 4 + Math.sin(P.t * 6) * 3;
+    c.strokeStyle = '#2F8FE8'; c.lineWidth = 7; c.setLineDash([]);
+    Art.rrect(c, sel.x - g, sel.y - g, sel.w + g * 2, sel.h + g * 2, Math.min(sel.w, sel.h) * 0.28); c.stroke();
+    c.strokeStyle = '#fff'; c.lineWidth = 2.5; c.stroke();
+  }
   c.restore();
 
   for (const b of P.bits) {

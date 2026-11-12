@@ -44,6 +44,7 @@ Design pillars – every feature is checked against these:
 - **Move:** press and hold anywhere → the pig walks toward your finger and keeps following it.
   A single tap also works: the pig walks to that spot. Arrow keys / WASD on keyboard.
 - **Buttons**, bottom right, big and round: 👃 sniff (yellow), 🔊 wheek (pink), and from level 2 ⤴ jump (green).
+- **Game controller** (Xbox pad): stick walks, A jump, X wheek, Y sniff; the buttons on the screen wear those letters while the pad is in use. Details in [tech.md](tech.md).
 - Top-right small button with three dots: back to the trail of levels.
 - **Tap the pig:** popcorn! (a toy, never required)
 - **Touch a stone, the log or the stump** that is in reach: he jumps onto it (same as the jump button, but you choose the target).
