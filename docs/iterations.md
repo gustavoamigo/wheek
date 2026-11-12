@@ -31,6 +31,8 @@ Each iteration: what was built → what to test → feedback received → what t
 **Feedback on the test build**
 - "When you complete a level, it takes like 5 seconds to go back to the screen for the next level. Maybe you could show a panel with congrats or something exciting, and a button to play next level." → the big star panel above. Lesson: a celebration must not be a wait; hand the child the next thing to press at once.
 
+- "The sound is muted on my iPhone." → two causes, both fixed: sound was only ever started from the touch going down, which iPhone does not accept (it wants a finished touch), and a web page's sound is muted by the phone's ring/silent switch unless the page asks to be treated as a game. Lesson: start sound from `touchend` / `click` as well, and ask for the `playback` audio session. Not checkable by script: needs a real iPhone.
+
 **Not built yet** (planned, see [missions.md](missions.md)): the gardener's garden and the town as places, a bigger maze with number gates, three more puzzle kinds, numbers up to 10.
 
 **Please test**

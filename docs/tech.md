@@ -18,6 +18,10 @@
 - A level can be in another **place** (`place` in `LEVELS`, kept in `world.place`). The maze stands far to the east of the forest on the same map; while he is there only the maze's hedges and edges are solid.
 - Tuning values at the top of `src/scene.js`: `FOV`, `CAM_UP`, `CAM_BACK`.
 
+## Sound on iPhone / iPad
+
+`src/audio.js` wakes the sound on every finished touch, click and key (`unlock`), because iOS ignores a start from `pointerdown`, and sets `navigator.audioSession.type = 'playback'` so the ring/silent switch does not mute the game (iOS 16.4 and later; older ones stay quiet while the switch is on silent).
+
 ## Run it
 
 ```

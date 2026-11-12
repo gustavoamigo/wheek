@@ -20,6 +20,21 @@ export function initAudio() {
   });
 }
 
+// iPhone and iPad are strict about sound:
+// - it may only start from a finished touch (touchend / click), not from the touch going down, which is
+//   what the game's buttons listen to. So every finished touch, click and key also wakes the sound up.
+// - by default a web page counts as "background sound", which the ring/silent switch on the side of the
+//   phone mutes. Asking for the "playback" kind makes it sound like any other game; the volume buttons
+//   and the game's own mute button still work.
+function unlock() {
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch {}
+  initAudio();
+  if (!ac || ac.state === 'running') return;
+  ac.resume();
+  const src = ac.createBufferSource(); src.buffer = ac.createBuffer(1, 1, 22050); src.connect(ac.destination); src.start(0);     // one silent sample: older iPhones need a sound started by the touch itself
+}
+for (const ev of ['touchend', 'click', 'keydown']) window.addEventListener(ev, unlock, true);
+
 export const audioRunning = () => !!ac && ac.state === 'running';
 
 export function setMuted(m) {
