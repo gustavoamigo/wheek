@@ -108,8 +108,12 @@ export function buildForest() {
   // keep the view of the log and the stump open: no tree right in front of them
   const logView = (o) => (Math.abs(o.x - 810) < 240 && o.y > log.ay - 60 && o.y < log.ay + 440) ||
     (Math.abs(o.x - (pond.x - 150)) < 200 && o.y > pond.y && o.y < pond.y + 460);        // ...or in front of the stepping stones
-  for (let i = trees.length - 1; i >= 0; i--) if (logView(trees[i])) trees.splice(i, 1);
-  for (let i = mushrooms.length - 1; i >= 0; i--) if (logView(mushrooms[i])) mushrooms.splice(i, 1);
+  // ...and the plates of strawberries of the counting levels: no trunk (or bush) between a plate and the camera
+  const plates = [[850, 800], [1110, 770], [900, 1215], [1160, 1190]];
+  const plateView = (o, wide, deep) => !o.apple && plates.some(([x, y]) => Math.abs(o.x - x) < wide && o.y > y - 70 && o.y < y + deep);
+  for (let i = trees.length - 1; i >= 0; i--) if (logView(trees[i]) || plateView(trees[i], 170, 470)) trees.splice(i, 1);
+  for (let i = mushrooms.length - 1; i >= 0; i--) if (logView(mushrooms[i]) || plateView(mushrooms[i], 170, 470)) mushrooms.splice(i, 1);
+  for (const list of [bushes, rocks]) for (let i = list.length - 1; i >= 0; i--) if (plateView(list[i], 110, 200)) list.splice(i, 1);
   // nothing grows through the log or the stump
   for (const list of [tufts, flowers]) for (let i = list.length - 1; i >= 0; i--) if (onPlat(list[i].x, list[i].y, 16)) list.splice(i, 1);
 
@@ -141,7 +145,7 @@ export function buildForest() {
     return { x, y };
   };
 
-  return { home, house, pond, gate, gardener, appleTree, trees: allTrees, bushes, rocks, tufts, flowers, mushrooms, patches, obstacles, platforms, plat: { log, stump, stones, island }, inPond, distToPath, freeSpot, nearFree, underCanopy };
+  return { home, house, pond, gate, gardener, appleTree, plates, trees: allTrees, bushes, rocks, tufts, flowers, mushrooms, patches, obstacles, platforms, plat: { log, stump, stones, island }, inPond, distToPath, freeSpot, nearFree, underCanopy };
 }
 
 // Slide the pig out of anything solid. Soft and forgiving: no getting stuck.
