@@ -25,16 +25,19 @@ Decided with the tester in iteration 6: levels in the same forest, each adding *
 | 3 | Jumps in a row | Over three stepping stones (a carrot on the middle one) to the big lily pad (lettuce). Miss = splash. | ✅ |
 | 4 | Counting | Four plates with 2, 3, 4 and 5 strawberries. A thought bubble shows "3 🍓" with three dots: find the plate with three. Then five, then four. He eats them one by one, and each one counts out loud ("1, 2, 3" pop up with rising notes). | ✅ |
 | 5 | Number order | Five stones numbered 1–5 zig-zag across the pond, so there is always a choice of two or three. Hop them in order, then onto the big lily pad for the lettuce. A stone that is not next wobbles and bounces him back to where he was. | ✅ |
-| 6 | Count your wheeks | The gardener by the town gate shows a number in her speech bubble, and under it **one grey squeak picture per wheek she wants**. Each wheek lights one up and she nods. Right → she cheers and throws a treat. Asked: 2, then 4, then 3. After the third the gate swings open. | ✅ |
-| 7 | Adding (plates) | Like level 4, but the thought bubble shows a sum – "2 + 1" with two groups of dots. Find the plate with that many altogether. Sums: 2+1, 2+3, 3+3; plates of 3, 4, 5, 6. | ✅ |
+| 6 | The gardener's puzzle | The gardener by the town gate shows the squeak bubble. A wheek opens a **popup puzzle**: *what comes next?* – a row of foods in a rhythm (🥬🍓🥬🍓🥬 ❓), three to choose from. Three rounds: AB, then AAB or ABB, then ABC. Solved → the gate swings open and she throws a carrot. | ✅ |
+| 7 | Adding (plates) | Like level 4, but the thought bubble shows a sum – "2 + 1" with two groups of dots. Find the plate with that many altogether. Sums: 2+1, 2+3, 3+3; plates of 3, 4, 5, 6. The bubble stays; the bar at the top is only three small pips. | ✅ |
 | 8 | Adding (stones) | The numbered stones of level 5 again, but now a thought bubble shows a sum – "1 + 1" – and he must hop onto the stone with the **answer** (2, then 2+2 → 4, then 2+3 → 5), then the lily pad for a strawberry. Any other stone wobbles and bounces him back. The answer stone is not highlighted. | ✅ |
+| 9 | The squirrel's puzzle | Wheek at the squirrel and a game of **pairs** opens: 6 cards (3 pairs), then 12 cards (6 pairs). Solved → he drops the apple. | ✅ |
+
+The pond levels (3, 5, 8) have their own camera: closer, a little from above, and held on the pond instead of on the pig, so the stones and their numbers are big (`POND_CAM` in `src/main.js`).
 
 How the number levels stay "no failing":
 - **Wrong plate (4):** he shakes his head, the plate wobbles and shows its own number in grey, nothing is lost. After two wrong plates the right one shines brighter and sniffing leads to it. Sniffing always brings the thought bubble back.
 - **Wrong stone (5):** a wobble, an "uh-uh" sound and a hop back. Touching a stone jumps to it; with keys, steer and press jump. The jump button alone does *not* pick the stone here – choosing is the game.
-- **Wrong count (6, 8):** too few is never wrong – she just keeps waiting, the count stays, and the pink button keeps bouncing. A hand taps at the button until the first number is done. Only when the number is reached does she wait a second (in case another wheek comes); one too many → she shakes her head and the pictures go grey again.
+- **Popup puzzles (6, 9):** a wrong choice wobbles with the "uh-uh" sound; after two wrong choices the right one glows. Cards that do not match turn back by themselves. The ✕ puts the puzzle away and keeps the round reached; a wheek brings it back.
 
-Later number ideas for 7–8 year olds: "which pile has more?", sharing carrots equally between two friends, numbers up to 10, first letters.
+Later number ideas: numbers up to 10, taking away ("5 − 2" as he eats), doubles, "which pile has more?", sharing carrots equally between two friends, first letters.
 
 Tuning values (in `src/main.js`): `LEVELS` (start place and goals of each level), `JUMP_V` and `GRAV` (jump height ≈ 52, so the log at 36 is reachable from the ground and the stump at 66 only from the log), `JUMP_REACH` (how far an aimed jump may go), target choice in `jumpToGoal` / `jumpToward`, landing margin 46 in `updateHeight`. Platform places and sizes are in `src/world.js`.
 
@@ -57,6 +60,26 @@ Tuning: first-round food positions `FIRST_SPOTS`, eat radius 66, squirrel hearin
 See "Jump" in [game-design.md](game-design.md). A treat that is up high can only be eaten when he is standing at that height.
 
 ---
+
+## Popup puzzles ✅ (two kinds so far)
+
+A big card over the forest, opened by wheeking at a friend who shows the squeak bubble. No words, no timer, no failing; a star per round at the top of the card. Code: `src/puzzle.js` (`PATTERNS`, `PATTERN_ROUNDS`, `MEMORY_ROUNDS`).
+
+| Puzzle | What the child does | Status |
+|---|---|---|
+| What comes next? | Pick the food that continues the row | ✅ |
+| Pairs | Turn cards over to find two the same | ✅ |
+| Jigsaw | Drag 4 → 6 → 9 pieces into a picture of Darling | 🔜 |
+| Fill the basket | "Make 7": drag strawberries in until the number is right; later up to 10 and taking away | 🔜 |
+| Which has more? | Tap the bigger pile; later close numbers and sums | 🔜 |
+
+## Next: the hedge maze 🔜
+
+A real maze Darling walks through (not a popup): about 5 × 5 cells first, short dead ends, the camera higher and steeper so the way can be planned. Sniffing shows only the next few steps. Later: number gates – a hedge door shows "3 + 2" and the two ways on are marked 5 and 6.
+
+## Next: a different place for every level 🔜
+
+Every level still starts in the same forest. Planned places: the nest (levels 1–2), the pond close-up (done as a camera, see above), the gardener's vegetable garden (plates, counting, sums among the rows), the hedge maze, and the town square behind the gate. A different time of day or season (sunset, autumn, rain) makes a place that is visited again feel new.
 
 ## Later: through the gate (the town) 🔜
 
