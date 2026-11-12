@@ -22,7 +22,12 @@ Each iteration: what was built → what to test → feedback received → what t
 - New level 10: the hedge maze, the first place that is not the forest. Seen from high up; a carrot down a blind alley and the lettuce in the far corner; sniffing shows only the next three steps.
 - Saved progress keeps working: the new puzzle level sits in the old level 6's place, levels 9 and 10 are added at the end.
 
+- Level finished (from feedback on the test build, see below): no more five-second wait. As soon as the fanfare has begun (1.7 s) a big star comes up over the dancing pig, with a green **next level** button (showing its number) and a small one back to the stones. It waits as long as the child likes; Space or Enter also go on. After the last level only the stones button is there.
+
 **Checked automatically**: levels 6, 9 and 10 played to the star by script (real taps in the puzzles, wrong picks, closing and reopening; in the maze a walk straight at the treat is stopped by the hedges, then the real way is walked); every level and free play start and end with no script errors; screenshots in landscape, 4:3 and upright phone. **Not checked**: real fingers, sound, frame rate on a real device, whether a child understands.
+
+**Feedback on the test build**
+- "When you complete a level, it takes like 5 seconds to go back to the screen for the next level. Maybe you could show a panel with congrats or something exciting, and a button to play next level." → the big star panel above. Lesson: a celebration must not be a wait; hand the child the next thing to press at once.
 
 **Not built yet** (planned, see [missions.md](missions.md)): the gardener's garden and the town as places, a bigger maze with number gates, three more puzzle kinds, numbers up to 10.
 

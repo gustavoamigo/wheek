@@ -487,11 +487,12 @@ function finishMunch() {
   if (G.eaten === G.foods.length) celebrate();
 }
 
+const CELEB = 6.5;        // how long a celebration lasts
 function celebrate() {
-  G.celebT = 6.5;
+  G.celebT = CELEB;
   setTimeout(() => { if (G.celebT > 0) { A.fanfare(); popcorn(4); } }, 700);
   setTimeout(() => {
-    if (G.celebT <= 0) return;
+    if (G.celebT <= 0 || G.level >= 0) return;        // (in a level the star comes with the big star panel)
     const [sx, sy] = S.project(G.pig.x, 110 + G.pig.z, G.pig.y);
     G.flyers.push({ type: 'star', sx, sy, t: 0, dur: 1.1 });
   }, 1500);
@@ -740,12 +741,11 @@ function update(dt) {
 
   if (G.celebT > 0) {
     G.celebT -= dt;
+    // a level is finished: no long wait – as soon as the fanfare has begun, up comes the big star with "next level"
+    if (G.level >= 0 && G.mode === 'play' && G.celebT < CELEB - 1.7) showDone();
     if (G.celebT <= 0) {
-      if (G.level >= 0) {
-        // level finished: back to the trail, where the next stone is waiting
-        if (G.level + 1 > G.done) { G.done = G.level + 1; try { localStorage.setItem('darling.level', String(G.done)); } catch {} }
-        showLevels(G.level);
-      } else {
+      if (G.level >= 0) { if (G.mode === 'play') showDone(); }
+      else {
         // breakfast makes you thirsty; after the drink a new breakfast round starts
         if (G.mission === 'food') G.mission = 'drink'; else { G.mission = 'food'; G.round++; }
         startRound();
@@ -1022,7 +1022,7 @@ const STONE_ICON = {
 function showLevels(just = -2) {
   G.mode = 'levels'; G.celebT = 0; G.flyers.length = 0; input.target = null; lastNudge = '';
   for (const id of ['btn-wheek', 'btn-sniff', 'btn-jump']) $(id).classList.remove('nudge');
-  $('title').classList.add('hidden'); $('ui').classList.add('hidden');
+  $('title').classList.add('hidden'); $('ui').classList.add('hidden'); $('done').classList.add('hidden');
   document.body.classList.remove('playing');
   const el = $('trail'); el.innerHTML = '';
   const add = (lv, cls, html) => {
@@ -1041,6 +1041,23 @@ function showLevels(just = -2) {
   $('levels').classList.remove('hidden');
 }
 
+// Level finished: a big star over the dancing pig, a green button for the next level and a small one
+// for the trail of stones. It waits for as long as it likes; the confetti goes on behind it.
+function showDone() {
+  if (G.level + 1 > G.done) { G.done = G.level + 1; try { localStorage.setItem('darling.level', String(G.done)); } catch {} }
+  G.stars++; try { localStorage.setItem('darling.stars', String(G.stars)); } catch {}
+  G.mode = 'done'; input.target = null; input.pointerDown = false; lastNudge = '';
+  for (const id of ['btn-wheek', 'btn-sniff', 'btn-jump']) $(id).classList.remove('nudge');
+  const last = G.level + 1 >= LEVELS.length;
+  $('done').classList.toggle('last', last); $('next-num').textContent = last ? '' : G.level + 2;
+  $('ui').classList.add('hidden'); $('done').classList.remove('hidden');
+  A.chime(7); popcorn(4);
+}
+function nextLevel() {
+  if (G.mode !== 'done') return;
+  if (G.level + 1 < LEVELS.length) { A.chime(G.level + 2); startLevel(G.level + 1); } else showLevels(G.level);
+}
+
 function startLevel(lv) {
   const p = G.pig, L = LEVELS[lv];
   G.level = lv; G.jumpOn = lv < 0 || L.jump; G.round = 0; G.mission = 'food'; G.moved = 0; G.celebT = 0; G.flyers.length = 0;
@@ -1049,7 +1066,7 @@ function startLevel(lv) {
   S.snapCamera();
   startRound();
   G.mode = 'play'; G.idleT = 0;
-  $('levels').classList.add('hidden'); $('title').classList.add('hidden');
+  $('levels').classList.add('hidden'); $('title').classList.add('hidden'); $('done').classList.add('hidden');
   $('ui').classList.remove('hidden');
   $('btn-jump').classList.toggle('hidden', !G.jumpOn);
   document.body.classList.add('playing');
@@ -1076,13 +1093,19 @@ bindButton('btn-sniff', () => { A.initAudio(); doSniff(); });
 bindButton('btn-wheek', () => { A.initAudio(); doWheek(); });
 bindButton('btn-jump', () => { A.initAudio(); doJump(); });
 bindButton('btn-home', () => { A.initAudio(); A.tap(); showLevels(); });
+bindButton('btn-next', () => { A.initAudio(); nextLevel(); });
+bindButton('btn-trail', () => { A.initAudio(); A.tap(); showLevels(G.level); });
 bindButton('btn-mute', () => {
   A.initAudio();
   A.setMuted(!A.isMuted());
   $('mute-waves').style.display = A.isMuted() ? 'none' : '';
   $('mute-cross').style.display = A.isMuted() ? '' : 'none';
 });
-window.addEventListener('keydown', (e) => { if (G.mode === 'title' && (e.code === 'Space' || e.code === 'Enter')) { e.stopImmediatePropagation(); startGame(); } }, true);
+window.addEventListener('keydown', (e) => {
+  if (e.repeat || (e.code !== 'Space' && e.code !== 'Enter')) return;
+  if (G.mode === 'title') { e.stopImmediatePropagation(); startGame(); }
+  else if (G.mode === 'done') { e.stopImmediatePropagation(); A.initAudio(); nextLevel(); }       // keys work too
+}, true);
 
 // Title: the name pops in letter by letter with a happy wheek. Browsers only allow sound
 // after the first touch or key, so if the wheek was blocked it plays (and the name pops in
@@ -1145,7 +1168,7 @@ requestAnimationFrame(frame);
 
 // Test helpers (see docs/tech.md): ?auto skips the title, ?bot plays by itself.
 // ?level=1..10 jumps straight into a level (0 = just play).
-G.api = { input, startGame, startLevel, showLevels, doSniff, doWheek, doJump, popcorn, nearestFood, project: S.project };
+G.api = { input, startGame, startLevel, showLevels, nextLevel, doSniff, doWheek, doJump, popcorn, nearestFood, project: S.project };
 if (params.has('level')) startLevel(clamp((parseInt(params.get('level'), 10) || 0) - 1, -1, LEVELS.length - 1));
 else if (params.has('auto') || params.has('bot')) startLevel(-1);
 if (params.has('bot')) import('./debug.js').then((m) => m.runBot(G, input));

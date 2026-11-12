@@ -15,7 +15,7 @@ Status: ✅ built · 🔜 next · 💭 idea
 
 ## The ladder of levels
 
-Decided with the tester in iteration 6: levels in the same forest, each adding **one** new idea; jumping first, numbers second. Picked from a trail of stones after the title screen. Finishing a level opens the next one.
+Decided with the tester in iteration 6: levels in the same forest, each adding **one** new idea; jumping first, numbers second. Picked from a trail of stones after the title screen. Finishing a level opens the next one: a big star comes up with a green button that goes straight on to it (and a small one back to the stones).
 
 | Level | New idea | What Darling does | Status |
 |---|---|---|---|

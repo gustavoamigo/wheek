@@ -86,6 +86,23 @@
 
 <div id="levels" class="hidden"><div id="trail"></div></div>
 
+<!-- level finished: a big star, then "next level" (green) or "back to the stones" -->
+<div id="done" class="hidden">
+  <div class="prize">
+    <div class="rays"></div>
+    <svg class="bigstar" viewBox="0 0 64 64"><path d="M32 6l8 17 18 2-13 13 3 19-16-9-16 9 3-19L6 25l18-2z" fill="#FFD23F" stroke="#E89B00" stroke-width="3.5" stroke-linejoin="round"/><circle cx="25" cy="24" r="3.4" fill="#fff" opacity=".7"/></svg>
+  </div>
+  <div class="row">
+    <button id="btn-trail" class="round" aria-label="Back to the levels">
+      <svg viewBox="0 0 64 64" fill="#fff"><circle cx="14" cy="44" r="8"/><circle cx="32" cy="24" r="8"/><circle cx="50" cy="42" r="8"/></svg>
+    </button>
+    <button id="btn-next" class="round" aria-label="Next level">
+      <svg viewBox="0 0 64 64"><path d="M24 16l26 16-26 16z" fill="#fff" stroke="#fff" stroke-width="6" stroke-linejoin="round"/></svg>
+      <b id="next-num"></b>
+    </button>
+  </div>
+</div>
+
 <div id="title">
   <h1 id="logo" aria-label="Wheek! Darling's Great Adventures">
     <span class="wheek"><i>W</i><i>h</i><i>e</i><i>e</i><i>k</i><i>!</i></span>
