@@ -27,6 +27,55 @@ export function nearestOn(o, x, y) {
 export function platDist(o, x, y) { const [cx, cy] = nearestOn(o, x, y); return Math.hypot(x - cx, y - cy); }
 export const STEP = 6;       // how far below a top the feet may be and still count as "on it"
 
+// The hedge maze: a place of its own, out to the east of the forest. A grid of cells with hedges between
+// them, grown from a seed so it is the same maze every time. Every cell can be reached and there is
+// exactly one way between any two cells.
+export function buildMaze(seed = 5, n = 5, cell = 200, x0 = 4300, y0 = 500) {
+  const r = rng(seed), T = 38;                                    // T = how thick a hedge is
+  const id = (cx, cy) => cy * n + cx, links = Array.from({ length: n * n }, () => []);
+  const seen = new Set([id(0, n - 1)]), stack = [[0, n - 1]];
+  while (stack.length) {
+    const [cx, cy] = stack[stack.length - 1];
+    const next = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [cx + dx, cy + dy]).filter(([x, y]) => x >= 0 && y >= 0 && x < n && y < n && !seen.has(id(x, y)));
+    if (!next.length) { stack.pop(); continue; }
+    const [nx, ny] = next[(r() * next.length) | 0];
+    links[id(cx, cy)].push(id(nx, ny)); links[id(nx, ny)].push(id(cx, cy));
+    seen.add(id(nx, ny)); stack.push([nx, ny]);
+  }
+  const open = (a, b) => links[a].includes(b);
+  // hedges: one box for every closed side of a cell, and the wall all round
+  const walls = [];
+  for (let cy = 0; cy < n; cy++) for (let cx = 0; cx < n; cx++) {
+    const x = x0 + cx * cell, y = y0 + cy * cell;
+    if (cy === 0) walls.push({ x: x - T / 2, y: y - T / 2, w: cell + T, h: T });
+    if (cx === 0) walls.push({ x: x - T / 2, y: y - T / 2, w: T, h: cell + T });
+    if (cx === n - 1 || !open(id(cx, cy), id(cx + 1, cy))) walls.push({ x: x + cell - T / 2, y: y - T / 2, w: T, h: cell + T });
+    if (cy === n - 1 || !open(id(cx, cy), id(cx, cy + 1))) walls.push({ x: x - T / 2, y: y + cell - T / 2, w: cell + T, h: T });
+  }
+  const centre = (c) => ({ x: x0 + ((c % n) + 0.5) * cell, y: y0 + (((c / n) | 0) + 0.5) * cell });
+  const cellAt = (x, y) => id(Math.max(0, Math.min(n - 1, ((x - x0) / cell) | 0)), Math.max(0, Math.min(n - 1, ((y - y0) / cell) | 0)));
+  // the cells to walk through from one cell to another (the first is where he stands)
+  const route = (from, to) => {
+    const prev = new Map([[from, -1]]), q = [from];
+    for (let i = 0; i < q.length && !prev.has(to); i++) for (const b of links[q[i]]) if (!prev.has(b)) { prev.set(b, q[i]); q.push(b); }
+    const out = [];
+    for (let c = to; c >= 0 && prev.has(c); c = prev.get(c)) out.unshift(c);
+    return out;
+  };
+  const start = id(0, n - 1), end = id(n - 1, 0), way = route(start, end);
+  // a treat waits at the end of the blind alley that is furthest off the way through
+  let side = -1, far = 0;
+  for (let c = 0; c < n * n; c++) {
+    if (links[c].length !== 1 || c === start || c === end) continue;
+    const d = route(start, c).filter((k) => !way.includes(k)).length;
+    if (d > far) { far = d; side = c; }
+  }
+  if (side < 0) side = way[(way.length / 2) | 0];
+  const size = n * cell;
+  return { n, cell, x0, y0, size, T, walls, centre, cellAt, route, start: centre(start), end: centre(end), side: centre(side), mid: { x: x0 + size / 2, y: y0 + size / 2 },
+    bounds: { x0: x0 + T / 2, y0: y0 + T / 2, x1: x0 + size - T / 2, y1: y0 + size - T / 2 } };
+}
+
 export function buildForest() {
   const r = rng(11);
   const home = { x: 620, y: 1000 };
@@ -145,11 +194,24 @@ export function buildForest() {
     return { x, y };
   };
 
-  return { home, house, pond, gate, gardener, appleTree, plates, trees: allTrees, bushes, rocks, tufts, flowers, mushrooms, patches, obstacles, platforms, plat: { log, stump, stones, island }, inPond, distToPath, freeSpot, nearFree, underCanopy };
+  return { place: 'forest', maze: buildMaze(), home, house, pond, gate, gardener, appleTree, plates, trees: allTrees, bushes, rocks, tufts, flowers, mushrooms, patches, obstacles, platforms, plat: { log, stump, stones, island }, inPond, distToPath, freeSpot, nearFree, underCanopy };
 }
 
 // Slide the pig out of anything solid. Soft and forgiving: no getting stuck.
 export function pushOut(world, p, rad) {
+  if (world.place === 'maze') {                     // in the maze there are only hedges
+    const b = world.maze.bounds;
+    for (let pass = 0; pass < 2; pass++) for (const o of world.maze.walls) {
+      const cx = Math.max(o.x, Math.min(o.x + o.w, p.x)), cy = Math.max(o.y, Math.min(o.y + o.h, p.y));
+      const dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy);
+      if (d >= rad) continue;
+      if (d > 0.001) { p.x = cx + (dx / d) * rad; p.y = cy + (dy / d) * rad; }
+      else if (Math.abs(p.x - (o.x + o.w / 2)) / o.w > Math.abs(p.y - (o.y + o.h / 2)) / o.h) p.x = p.x < o.x + o.w / 2 ? o.x - rad : o.x + o.w + rad;
+      else p.y = p.y < o.y + o.h / 2 ? o.y - rad : o.y + o.h + rad;
+    }
+    p.x = Math.max(b.x0 + rad, Math.min(b.x1 - rad, p.x)); p.y = Math.max(b.y0 + rad, Math.min(b.y1 - rad, p.y));
+    return;
+  }
   for (const o of world.obstacles) {
     const dx = p.x - o.x, dy = p.y - o.y, d = Math.hypot(dx, dy), min = o.r + rad;
     if (d < min) {

@@ -29,6 +29,7 @@ Decided with the tester in iteration 6: levels in the same forest, each adding *
 | 7 | Adding (plates) | Like level 4, but the thought bubble shows a sum – "2 + 1" with two groups of dots. Find the plate with that many altogether. Sums: 2+1, 2+3, 3+3; plates of 3, 4, 5, 6. The bubble stays; the bar at the top is only three small pips. | ✅ |
 | 8 | Adding (stones) | The numbered stones of level 5 again, but now a thought bubble shows a sum – "1 + 1" – and he must hop onto the stone with the **answer** (2, then 2+2 → 4, then 2+3 → 5), then the lily pad for a strawberry. Any other stone wobbles and bounces him back. The answer stone is not highlighted. | ✅ |
 | 9 | The squirrel's puzzle | Wheek at the squirrel and a game of **pairs** opens: 6 cards (3 pairs), then 12 cards (6 pairs). Solved → he drops the apple. | ✅ |
+| 10 | The hedge maze | A place of its own: a 5 × 5 hedge maze seen from high up. A carrot waits down a blind alley, the lettuce in the far corner. Touching a treat does not walk him there – the hedges stop him, so the way has to be found. Sniffing shows only the next three steps of the way. | ✅ |
 
 The pond levels (3, 5, 8) have their own camera: closer, a little from above, and held on the pond instead of on the pig, so the stones and their numbers are big (`POND_CAM` in `src/main.js`).
 
@@ -73,13 +74,13 @@ A big card over the forest, opened by wheeking at a friend who shows the squeak 
 | Fill the basket | "Make 7": drag strawberries in until the number is right; later up to 10 and taking away | 🔜 |
 | Which has more? | Tap the bigger pile; later close numbers and sums | 🔜 |
 
-## Next: the hedge maze 🔜
+## The hedge maze ✅ (first one)
 
-A real maze Darling walks through (not a popup): about 5 × 5 cells first, short dead ends, the camera higher and steeper so the way can be planned. Sniffing shows only the next few steps. Later: number gates – a hedge door shows "3 + 2" and the two ways on are marked 5 and 6.
+Built as level 10 (`buildMaze` in `src/world.js`: seed, cells per side, cell size). Still to come: a bigger one (7 × 7), and number gates – a hedge door shows "3 + 2" and the two ways on are marked 5 and 6.
 
 ## Next: a different place for every level 🔜
 
-Every level still starts in the same forest. Planned places: the nest (levels 1–2), the pond close-up (done as a camera, see above), the gardener's vegetable garden (plates, counting, sums among the rows), the hedge maze, and the town square behind the gate. A different time of day or season (sunset, autumn, rain) makes a place that is visited again feel new.
+Levels 1–9 still share the forest. Done: the pond close-up (a camera, see above) and the hedge maze (a real separate place). Planned: the gardener's vegetable garden (plates, counting, sums among the rows) and the town square behind the gate. A different time of day or season (sunset, autumn, rain) makes a place that is visited again feel new.
 
 ## Later: through the gate (the town) 🔜
 

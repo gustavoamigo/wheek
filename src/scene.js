@@ -102,6 +102,31 @@ export function initScene(canvas, w) {
     scene.add(blades);
   }
 
+  // the hedge maze, out to the east: a sandy floor, bumpy hedges, a few trees behind it
+  const mz = world.maze, hedgeMat = M.surf({ color: '#ffffff', map: leafTex });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(mz.size + 60, mz.size + 60).rotateX(-Math.PI / 2), M.surf({ color: '#EBD7A8' }));
+  floor.position.set(mz.mid.x, 0.5, mz.mid.y); floor.receiveShadow = true; scene.add(floor);
+  let hs = 7; const hr = () => ((hs = (hs * 16807) % 2147483647) / 2147483647);
+  const bumps = [];
+  for (const o of mz.walls) {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(o.w - 6, 46, o.h - 6), M.mat('#4FA653'));
+    box.position.set(o.x + o.w / 2, 23, o.y + o.h / 2); box.castShadow = true; box.receiveShadow = true; scene.add(box);
+    const long = Math.max(o.w, o.h), k = Math.max(2, Math.round(long / 36));
+    for (let i = 0; i < k; i++) { const f = (i + 0.5) / k; bumps.push([o.w > o.h ? o.x + o.w * f : o.x + o.w / 2, o.w > o.h ? o.y + o.h / 2 : o.y + o.h * f]); }
+  }
+  const hedge = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), hedgeMat, bumps.length);
+  bumps.forEach(([x, y], i) => {
+    mtx.compose(v.set(x + (hr() - 0.5) * 6, 44 + hr() * 8, y + (hr() - 0.5) * 6), q.identity(), s.set(25 + hr() * 5, 20 + hr() * 7, 25 + hr() * 5)); hedge.setMatrixAt(i, mtx);
+    hedge.setColorAt(i, col.setHSL(0.31 + hr() * 0.05, 0.5, 0.42 + hr() * 0.1));
+  });
+  hedge.castShadow = true; scene.add(hedge);
+  for (let i = 0; i < 9; i++) {
+    const a = Math.PI * (1.05 + (i / 8) * 0.9), g = new THREE.Group(), sc = 1.05 + hr() * 0.4;       // an arc round the far side
+    const canopy = new THREE.Mesh(M.canopyGeometry((hr() * 4) | 0, false), M.surf({ vertexColors: true, map: leafTex }));
+    canopy.castShadow = true; g.add(new THREE.Mesh(M.trunkGeometry, trunkMat), canopy);
+    g.position.set(mz.mid.x + Math.cos(a) * (mz.size * 0.78 + hr() * 60), 0, mz.mid.y + Math.sin(a) * (mz.size * 0.72 + hr() * 60)); g.scale.setScalar(sc); scene.add(g);
+  }
+
   const house = M.makeHouse(); house.position.set(world.house.x, 0, world.house.y - 30); scene.add(house);
   const gate = M.makeGate(); gate.root.position.set(world.gate.x, 0, world.gate.y); scene.add(gate.root); gateDoor = gate.door;
   gardener = M.makeGardener(); gardener.root.position.set(world.gardener.x, 0, world.gardener.y); scene.add(gardener.root);
@@ -221,15 +246,16 @@ function updateCamera(G, dt) {
   const reach = Math.tan((FOV * Math.PI) / 360) * Math.hypot(CAM_UP, CAM_BACK) * camera.aspect;     // half the width seen at d = 1
   // (an upright phone cannot show the whole pond big enough: there the view is narrower and follows the pig more)
   const tall = camera.aspect < 1, follow = cv ? (tall ? 0.6 : cv.follow) : 1;
-  const want = G.mode === 'title' ? 0.55 : cv ? clamp((cv.half * (tall ? 0.72 : 1)) / reach, 0.5, fit) / fit : 1;
+  const want = G.mode === 'title' ? 0.55 : cv ? clamp((cv.half * (tall ? 0.72 : 1)) / reach, 0.5, fit * (tall ? 0.8 : cv.far || 1)) / fit : 1;
   zoomK = lerp(zoomK, want, 1 - Math.exp(-dt * 2));
   tiltK = lerp(tiltK, cv ? cv.tilt : 0, 1 - Math.exp(-dt * 2));
   const d = fit * zoomK;
   const lead = G.mode === 'title' || cv ? 0 : 0.3;
   const halfW = reach * d;
   const mx = Math.min(520, halfW * 0.55);
-  let tx = clamp(p.x + p.vx * lead, mx, W - mx), tz = clamp(p.y + p.vy * lead, 300, H - 60);
+  let tx = p.x + p.vx * lead, tz = p.y + p.vy * lead;
   if (cv) { tx = lerp(cv.x, tx, follow); tz = lerp(cv.y, tz, follow); }
+  else { tx = clamp(tx, mx, W - mx); tz = clamp(tz, 300, H - 60); }
   const k = camReady ? 1 - Math.exp(-dt * 4) : 1;
   if (!camReady) { zoomK = want; tiltK = cv ? cv.tilt : 0; }
   camReady = true;

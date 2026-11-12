@@ -51,8 +51,8 @@ const G = {
 window.__G = G;
 window.__puzzle = puzzleProbe; window.__puzzleClose = puzzleCloseAt;
 try { G.stars = Math.min(99, parseInt(localStorage.getItem('darling.stars') || '0', 10) || 0); } catch {}
-try { G.done = clamp(parseInt(localStorage.getItem('darling.level') || '0', 10) || 0, 0, 9); } catch {}
-if (params.has('unlock')) G.done = 9;
+try { G.done = clamp(parseInt(localStorage.getItem('darling.level') || '0', 10) || 0, 0, 10); } catch {}
+if (params.has('unlock')) G.done = 10;
 
 const { squirrelPos } = S.initScene(canvas, world);
 function resize() {
@@ -98,6 +98,9 @@ const waterSpot = () => [world.pond.x - 10, world.pond.y + world.pond.ry + 38];
 // their numbers are big. half = how much of the world must fit across half the screen.
 const POND_CAM = { x: world.pond.x - 70, y: world.pond.y + 20, half: 350, tilt: 0.22, follow: 0.3 };
 const NEST = [world.home.x + 40, world.home.y + 20];
+// The maze is looked at from high up, nearly all of it at once, so the way can be planned.
+const MZ = world.maze;
+const MAZE_CAM = { x: MZ.mid.x, y: MZ.mid.y + 40, half: MZ.size * 0.66, tilt: 0.8, follow: 0.3, far: 1.45 };
 const LEVELS = [
   // 1: three easy things – eat, drink, ask the squirrel
   { jump: false, start: NEST, goals: () => [['carrot', ...FIRST_SPOTS.carrot], ['water', ...waterSpot()], ['apple']] },
@@ -117,6 +120,8 @@ const LEVELS = [
   { jump: true, start: [1215, 690], face: 0, cam: POND_CAM, task: 'order', seq: [2, 4, 5], asks: [[1, 1], [2, 2], [2, 3]], goals: () => [['strawberry', PL.island.ax + 14, PL.island.ay + 6, PL.island.h]] },
   // 9: the squirrel's puzzle – wheek at him and a game of pairs opens; solved, he drops the apple
   { jump: false, start: [1010, 1240], face: 0.6, task: 'puzzle', puzzle: 'memory', who: 'squirrel', goals: () => [['apple']] },
+  // 10: the hedge maze – a carrot down a blind alley, then the lettuce in the far corner
+  { jump: false, place: 'maze', start: [MZ.start.x, MZ.start.y], face: -1.57, cam: MAZE_CAM, goals: () => [['carrot', MZ.side.x, MZ.side.y], ['lettuce', MZ.end.x, MZ.end.y]] },
 ];
 
 // ----------------------------------------------------------- number games --
@@ -210,7 +215,7 @@ function startRound() {
   G.squirrel.hasApple = false; G.squirrel.dropT = -1;
   G.task = null; G.piles = []; G.nums.length = 0; G.gateOpen = false;
   const L = LEVELS[G.level];
-  G.cam = (L && L.cam) || null;
+  G.cam = (L && L.cam) || null; world.place = (L && L.place) || 'forest';
   setPlatforms(!!L && L.task === 'order');
   if (!L || !L.task) S.setPiles(G.piles);
   if (G.level >= 0) {
@@ -218,7 +223,7 @@ function startRound() {
       let hidden = false;
       if (x === undefined && kind !== 'apple') { x = y = 0; }
       else if (kind === 'apple') { ({ x, y } = world.nearFree(world.appleTree.x + 130, world.appleTree.y + 110)); hidden = true; G.squirrel.hasApple = true; }
-      else if (!h && kind !== 'water') ({ x, y } = world.nearFree(x, y));
+      else if (!h && kind !== 'water' && !L.place) ({ x, y } = world.nearFree(x, y));
       G.foods.push({ kind, slot, x, y, h, eaten: false, hidden, bite: 0, fall: -1, born: G.t, seed: slot * 2.3 });
     });
     if (L.task) startTask(L.task, L);
@@ -288,6 +293,14 @@ function finishSniff() {
   if (!n) { spawn({ type: 'heart', x: p.x, y: 100, z: p.y, vy: 70, life: 1.2, size: 13, color: '#FF7FA0' }); return; }
   G.hint = { x: n.x, y: n.y, kind: n.kind, t: 10 };
   G.trail = { x0: p.x, y0: p.y, x1: n.x, y1: n.y, t: 0, life: 8 };
+  if (world.place === 'maze') {
+    // in the maze the smell goes round the corners, but only a few steps ahead: the rest is for him to find
+    const cells = MZ.route(MZ.cellAt(p.x, p.y), MZ.cellAt(n.x, n.y)).slice(1, 4).map(MZ.centre);
+    const to = cells.length ? cells[cells.length - 1] : n;
+    G.trail = { pts: [{ x: p.x, y: p.y }, ...cells], x1: to.x, y1: to.y, t: 0, life: 6 };
+    G.hint = null;
+    if (cells.length) n.x = cells[0].x, n.y = cells[0].y;
+  }
   p.heading = Math.atan2(n.y - p.y, n.x - p.x);
   A.chime(1);
 }
@@ -765,13 +778,16 @@ function updateHints() {
 // sparkles, the scent trail, speech bubbles and the picture HUD.
 function drawTrail(c, time) {
   const tr = G.trail; if (!tr) return;
-  const dx = tr.x1 - tr.x0, dy = tr.y1 - tr.y0, d = Math.hypot(dx, dy);
+  const pts = tr.pts || [{ x: tr.x0, y: tr.y0 }, { x: tr.x1, y: tr.y1 }];
+  let d = 0; for (let i = 1; i < pts.length; i++) d += dist(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y);
   if (d < 80) return;
   const len = Math.min(d, 900), fade = clamp((tr.life - tr.t) / 1.5, 0, 1);
   const reach = clamp(tr.t / 0.9, 0, 1) * len, gap = 52, off = (time * 120) % gap;
-  for (let s = 60 + off; s < reach; s += gap) {
-    const k = s / len;
-    const [sx, sy, px, ok] = S.project(tr.x0 + (dx / d) * s, 14 + Math.sin(s * 0.05 - time * 5) * 7, tr.y0 + (dy / d) * s);
+  for (let s = (tr.pts ? 40 : 60) + off; s < reach; s += gap) {
+    let i = 1, left = s;                              // which stretch of the trail this star is on
+    for (; i < pts.length - 1; i++) { const l = dist(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y); if (left <= l) break; left -= l; }
+    const a = pts[i - 1], b = pts[i], l = dist(a.x, a.y, b.x, b.y) || 1, k = s / len;
+    const [sx, sy, px, ok] = S.project(lerp(a.x, b.x, left / l), 14 + Math.sin(s * 0.05 - time * 5) * 7, lerp(a.y, b.y, left / l));
     if (!ok) continue;
     c.globalAlpha = fade * (1 - k * 0.6);
     c.fillStyle = '#FFFBE0'; Art.circ(c, sx, sy, 13 * px); c.fill();
@@ -1128,7 +1144,7 @@ initInput(canvas);
 requestAnimationFrame(frame);
 
 // Test helpers (see docs/tech.md): ?auto skips the title, ?bot plays by itself.
-// ?level=1..9 jumps straight into a level (0 = just play).
+// ?level=1..10 jumps straight into a level (0 = just play).
 G.api = { input, startGame, startLevel, showLevels, doSniff, doWheek, doJump, popcorn, nearestFood, project: S.project };
 if (params.has('level')) startLevel(clamp((parseInt(params.get('level'), 10) || 0) - 1, -1, LEVELS.length - 1));
 else if (params.has('auto') || params.has('bot')) startLevel(-1);

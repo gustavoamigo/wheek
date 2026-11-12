@@ -19,15 +19,19 @@ Each iteration: what was built → what to test → feedback received → what t
 - Level 7 and 8: the top bar no longer repeats the three sums; it is three small pips (a star for each one done). The thought bubble is smaller and, in the adding levels, stays up.
 - No tree, bush or rock may stand between a plate of strawberries and the camera (same rule as for the nest and the log).
 - Pond levels 3, 5 and 8: the camera comes closer, looks a little from above and stays on the pond. On an upright phone it is narrower still and follows the pig.
-- Saved progress keeps working: the new puzzle level sits in the old level 6's place, level 9 is added at the end.
+- New level 10: the hedge maze, the first place that is not the forest. Seen from high up; a carrot down a blind alley and the lettuce in the far corner; sniffing shows only the next three steps.
+- Saved progress keeps working: the new puzzle level sits in the old level 6's place, levels 9 and 10 are added at the end.
 
-**Not built yet** (planned, see [missions.md](missions.md)): the hedge maze, a different place for every level, three more puzzle kinds, numbers up to 10.
+**Checked automatically**: levels 6, 9 and 10 played to the star by script (real taps in the puzzles, wrong picks, closing and reopening; in the maze a walk straight at the treat is stopped by the hedges, then the real way is walked); every level and free play start and end with no script errors; screenshots in landscape, 4:3 and upright phone. **Not checked**: real fingers, sound, frame rate on a real device, whether a child understands.
+
+**Not built yet** (planned, see [missions.md](missions.md)): the gardener's garden and the town as places, a bigger maze with number gates, three more puzzle kinds, numbers up to 10.
 
 **Please test**
 1. **Level 6** – is the squeak bubble at the gardener enough to make a child wheek at her? Is the pattern puzzle the right difficulty; is the third round (three foods) too easy?
 2. **Level 9** – 12 cards: fun or too long?
 3. **Pond levels** – is the pond big enough now on your device? Anything cut off?
 4. **Level 7** – all four plates easy to see?
+5. **Level 10** – is steering through the maze comfortable with a finger held down? Too easy, too hard? Is the sniff trail (three steps) the right amount of help?
 
 ---
 
